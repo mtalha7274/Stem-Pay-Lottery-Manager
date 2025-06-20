@@ -1,6 +1,6 @@
 {
 	"compiler": {
-		"version": "0.8.24+commit.e11b9ed9"
+		"version": "0.8.30+commit.73712a01"
 	},
 	"language": "Solidity",
 	"output": {
@@ -43,28 +43,10 @@
 				],
 				"name": "Initialized",
 				"type": "event"
-			},
-			{
-				"inputs": [
-					{
-						"internalType": "uint256",
-						"name": "requestId",
-						"type": "uint256"
-					},
-					{
-						"internalType": "uint256[]",
-						"name": "randomWords",
-						"type": "uint256[]"
-					}
-				],
-				"name": "rawFulfillRandomWords",
-				"outputs": [],
-				"stateMutability": "nonpayable",
-				"type": "function"
 			}
 		],
 		"devdoc": {
-			"details": "Emulates Chainlink's VRFConsumerBaseV2_5 in upgradeable form.",
+			"details": "Upgradeable-compatible wrapper for Chainlink VRFConsumerBaseV2-like functionality.",
 			"errors": {
 				"InvalidInitialization()": [
 					{
@@ -96,13 +78,13 @@
 		"compilationTarget": {
 			"contracts/VRFConsumerBaseV2_5Upgradeable.sol": "VRFConsumerBaseV2_5Upgradeable"
 		},
-		"evmVersion": "cancun",
+		"evmVersion": "prague",
 		"libraries": {},
 		"metadata": {
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
 		"remappings": []
@@ -117,11 +99,11 @@
 			]
 		},
 		"contracts/VRFConsumerBaseV2_5Upgradeable.sol": {
-			"keccak256": "0x8fee77fbef6edb6156f71ee35d80c75399c1924bcd717333b1001b9e83ded738",
+			"keccak256": "0x602e1ac4505847221dd2ed81afd8660bfae90cc7ffb4b10b9c57f9dcb5a32b0a",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://ad95bd4b906c81e104bbbe85c21d168cd4780cdf14a80212549480ba756f80f2",
-				"dweb:/ipfs/QmbqkfV2pHXYoZG57H9sHBvpwqKNTB55cxHp5EBt7e9moW"
+				"bzz-raw://aefac4e43cfa1324577620d4f53c1bb6c29bf71dd4412820e639533485719879",
+				"dweb:/ipfs/QmTDyqn9yGAPgr1A5mDb3ECSHBoxBK7NCiYXsZ2n4m1AL9"
 			]
 		}
 	},

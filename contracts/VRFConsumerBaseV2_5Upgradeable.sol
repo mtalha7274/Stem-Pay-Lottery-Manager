@@ -4,7 +4,7 @@ pragma solidity ^0.8.20;
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 
 /**
- * @dev Emulates Chainlink's VRFConsumerBaseV2_5 in upgradeable form.
+ * @dev Upgradeable-compatible wrapper for Chainlink VRFConsumerBaseV2-like functionality.
  */
 abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
     error OnlyCoordinatorCanFulfill(address have, address want);
@@ -16,14 +16,14 @@ abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
     }
 
     /**
-     * @notice Override this to handle randomness
+     * @notice Override to handle VRF response
      */
-    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
+    // function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
 
-    function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
-        if (msg.sender != vrfCoordinator) {
-            revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
-        }
-        fulfillRandomWords(requestId, randomWords);
-    }
+    // function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
+    //     if (msg.sender != vrfCoordinator) {
+    //         revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
+    //     }
+    //     fulfillRandomWords(requestId, randomWords);
+    // }
 }
