@@ -79,7 +79,7 @@ contract StemPayLotteryManager is
     function initialize(
         address _vrfCoordinator,
         bytes32 _keyHash,
-        uint64 _subId,
+        uint256 _subId,
         address _investmentWallet,
         address _profitWallet
     ) external initializer {

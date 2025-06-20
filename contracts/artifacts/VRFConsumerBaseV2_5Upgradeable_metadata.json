@@ -236,11 +236,11 @@
 			]
 		},
 		"contracts/StemPayLotteryManager.sol": {
-			"keccak256": "0x77fde0acf1004d8aa13e5637419f1e962fa8f5b9828d6986dc653fe8b883db09",
+			"keccak256": "0x56440413f7fa8767b227297eb5a188fad8e834716d1958b62532df079414a7b5",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://0569e2a145598262dadf9adc144d9e0944cfafb3b8753aa2a9c275f8e031dd3d",
-				"dweb:/ipfs/QmbSAhcjFXzRDatRGPLDX8FuzNudTh3nu1ML3mfK13kScz"
+				"bzz-raw://97c9aa3d8c48974f42cba2a195af8cf2b6ab2f94cb968c7d8740f74148c8f4a8",
+				"dweb:/ipfs/QmUUKNuDhaNrYuR9NPeiMXpCSHJgepeKHaLtm81nt711xh"
 			]
 		}
 	},
