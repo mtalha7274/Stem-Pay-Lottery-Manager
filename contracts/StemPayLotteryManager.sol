@@ -254,4 +254,25 @@ contract StemPayLotteryManager is
 
         emit EnteredLottery(toId, msg.sender);
     }
+
+    function getEntryCount(uint256 lotteryId, address user) external view returns (uint256) {
+        return lotteries[lotteryId].entryCount[user];
+    }
+
+    function hasUserRefunded(uint256 lotteryId, address user) external view returns (bool) {
+        return lotteries[lotteryId].hasRefunded[user];
+    }
+
+    function hasUserClaimed(uint256 lotteryId, address user) external view returns (bool) {
+        return lotteries[lotteryId].hasClaimed[user];
+    }
+
+    function hasUserVotedCancel(uint256 lotteryId, address user) external view returns (bool) {
+        return lotteries[lotteryId].hasVotedCancel[user];
+    }
+    
+    // Testing hook to simulate Chainlink response (ONLY for testing)
+    function testFulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) external onlyOwner {
+        fulfillRandomWords(requestId, randomWords);
+    }
 }

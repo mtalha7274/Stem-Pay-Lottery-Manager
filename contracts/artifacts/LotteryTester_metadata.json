@@ -6,43 +6,131 @@
 	"output": {
 		"abi": [
 			{
-				"inputs": [],
-				"name": "InvalidInitialization",
-				"type": "error"
-			},
-			{
-				"inputs": [],
-				"name": "NotInitializing",
-				"type": "error"
-			},
-			{
 				"inputs": [
 					{
 						"internalType": "address",
-						"name": "have",
+						"name": "_lottery",
 						"type": "address"
 					},
 					{
 						"internalType": "address",
-						"name": "want",
+						"name": "_token",
 						"type": "address"
 					}
 				],
-				"name": "OnlyCoordinatorCanFulfill",
-				"type": "error"
+				"stateMutability": "nonpayable",
+				"type": "constructor"
 			},
 			{
-				"anonymous": false,
+				"inputs": [],
+				"name": "approveForAll",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
 				"inputs": [
 					{
-						"indexed": false,
-						"internalType": "uint64",
-						"name": "version",
-						"type": "uint64"
+						"internalType": "uint256",
+						"name": "lotteryId",
+						"type": "uint256"
 					}
 				],
-				"name": "Initialized",
-				"type": "event"
+				"name": "callDraw",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "lotteryId",
+						"type": "uint256"
+					}
+				],
+				"name": "claimAllRefunds",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "count",
+						"type": "uint256"
+					}
+				],
+				"name": "createMockUsers",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "lotteryId",
+						"type": "uint256"
+					}
+				],
+				"name": "enterAll",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "amount",
+						"type": "uint256"
+					}
+				],
+				"name": "fundUsers",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "getTestUsers",
+				"outputs": [
+					{
+						"internalType": "address[]",
+						"name": "",
+						"type": "address[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "lottery",
+				"outputs": [
+					{
+						"internalType": "contract StemPayLotteryManager",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "owner",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
 			},
 			{
 				"inputs": [
@@ -57,30 +145,45 @@
 						"type": "uint256[]"
 					}
 				],
-				"name": "rawFulfillRandomWords",
+				"name": "simulateFulfill",
 				"outputs": [],
 				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"name": "testUsers",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "token",
+				"outputs": [
+					{
+						"internalType": "contract IERC20",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			}
 		],
 		"devdoc": {
-			"errors": {
-				"InvalidInitialization()": [
-					{
-						"details": "The contract is already initialized."
-					}
-				],
-				"NotInitializing()": [
-					{
-						"details": "The contract is not initializing."
-					}
-				]
-			},
-			"events": {
-				"Initialized(uint64)": {
-					"details": "Triggered when the contract has been initialized or reinitialized."
-				}
-			},
 			"kind": "dev",
 			"methods": {},
 			"version": 1
@@ -93,7 +196,7 @@
 	},
 	"settings": {
 		"compilationTarget": {
-			"contracts/StemPayLotteryManager.sol": "VRFConsumerBaseV2_5Upgradeable"
+			"contracts/LotteryTester.sol": "LotteryTester"
 		},
 		"evmVersion": "prague",
 		"libraries": {},
@@ -233,6 +336,14 @@
 			"urls": [
 				"bzz-raw://9f660b1f351b757dfe01438e59888f31f33ded3afcf5cb5b0d9bf9aa6f320a8b",
 				"dweb:/ipfs/QmarDJ5hZEgBtCmmrVzEZWjub9769eD686jmzb2XpSU1cM"
+			]
+		},
+		"contracts/LotteryTester.sol": {
+			"keccak256": "0x56dd67205cc3ca2a12523bc6ba3e7e040d823a2bcd369e7d37432539e1d2d99f",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://9c078e979016cc9130e94d25b89b72e45b5fe325a51a945662265dfb75023f64",
+				"dweb:/ipfs/QmZoHTfKLK8Y7TketmKJWS69PrfQZWwaqxdfZM9uat4wBa"
 			]
 		},
 		"contracts/StemPayLotteryManager.sol": {

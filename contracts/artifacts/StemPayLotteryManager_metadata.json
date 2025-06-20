@@ -385,6 +385,30 @@
 				"inputs": [
 					{
 						"internalType": "uint256",
+						"name": "lotteryId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					}
+				],
+				"name": "getEntryCount",
+				"outputs": [
+					{
+						"internalType": "uint256",
+						"name": "",
+						"type": "uint256"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
 						"name": "_lotteryId",
 						"type": "uint256"
 					}
@@ -395,6 +419,78 @@
 						"internalType": "address[]",
 						"name": "",
 						"type": "address[]"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "lotteryId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					}
+				],
+				"name": "hasUserClaimed",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "lotteryId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					}
+				],
+				"name": "hasUserRefunded",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
+						"internalType": "uint256",
+						"name": "lotteryId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "address",
+						"name": "user",
+						"type": "address"
+					}
+				],
+				"name": "hasUserVotedCancel",
+				"outputs": [
+					{
+						"internalType": "bool",
+						"name": "",
+						"type": "bool"
 					}
 				],
 				"stateMutability": "view",
@@ -694,6 +790,24 @@
 			{
 				"inputs": [
 					{
+						"internalType": "uint256",
+						"name": "requestId",
+						"type": "uint256"
+					},
+					{
+						"internalType": "uint256[]",
+						"name": "randomWords",
+						"type": "uint256[]"
+					}
+				],
+				"name": "testFulfillRandomWords",
+				"outputs": [],
+				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [
+					{
 						"internalType": "address",
 						"name": "newOwner",
 						"type": "address"
@@ -982,11 +1096,11 @@
 			]
 		},
 		"contracts/StemPayLotteryManager.sol": {
-			"keccak256": "0x56440413f7fa8767b227297eb5a188fad8e834716d1958b62532df079414a7b5",
+			"keccak256": "0xe21f5105fb91850350e9b5eddf4b7948f3e73798022f419875385d0c81e2fb4e",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://97c9aa3d8c48974f42cba2a195af8cf2b6ab2f94cb968c7d8740f74148c8f4a8",
-				"dweb:/ipfs/QmUUKNuDhaNrYuR9NPeiMXpCSHJgepeKHaLtm81nt711xh"
+				"bzz-raw://69be84b9911443c08877ce4affae2a7de0fcc0c76923c3a91a49fae52cbb3dbf",
+				"dweb:/ipfs/QmNN5pgXxDxHhd5kaqis7Lmd4J1AeTP7mjphjwa1YCx3qF"
 			]
 		}
 	},
