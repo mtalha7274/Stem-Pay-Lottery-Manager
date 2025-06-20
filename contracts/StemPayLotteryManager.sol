@@ -68,6 +68,8 @@ contract StemPayLotteryManager is
     uint256 public subscriptionId;
     address public vrfCoordinator;
 
+    uint256[] public allLotteryIds;
+
     mapping(uint256 => uint256) public requestToLottery;
 
     event LotteryCreated(uint256 lotteryId);
@@ -113,7 +115,8 @@ contract StemPayLotteryManager is
         require(_participationFee >= _refundableAmount, "Refund <= fee");
         require(_drawTime > block.timestamp, "Invalid draw time");
 
-        Lottery storage l = lotteries[++lotteryCounter];
+        lotteryCounter++;
+        Lottery storage l = lotteries[lotteryCounter];
         l.tokenAddress = _tokenAddress;
         l.participationFee = _participationFee;
         l.refundableAmount = _refundableAmount;
@@ -124,8 +127,11 @@ contract StemPayLotteryManager is
         l.feeToProfit = _feeToProfit;
         l.isActive = true;
 
+        allLotteryIds.push(lotteryCounter); // ✅ track this lottery for later reference
+
         emit LotteryCreated(lotteryCounter);
     }
+
 
     function enterLottery(uint256 _lotteryId) external nonReentrant {
         Lottery storage l = lotteries[_lotteryId];
@@ -270,6 +276,31 @@ contract StemPayLotteryManager is
     function hasUserVotedCancel(uint256 lotteryId, address user) external view returns (bool) {
         return lotteries[lotteryId].hasVotedCancel[user];
     }
+
+    function getActiveLotteries() external view returns (uint256[] memory) {
+        uint256[] memory temp = new uint256[](allLotteryIds.length);
+        uint256 count = 0;
+
+        for (uint256 i = 0; i < allLotteryIds.length; i++) {
+            uint256 id = allLotteryIds[i];
+            Lottery storage l = lotteries[id];
+
+            // Lottery is joinable if it's active, not cancelled, and draw time not reached
+            if (l.isActive && !l.isCancelled && block.timestamp < l.drawTime) {
+                temp[count] = id;
+                count++;
+            }
+        }
+
+        // Trim to actual count
+        uint256[] memory result = new uint256[](count);
+        for (uint256 j = 0; j < count; j++) {
+            result[j] = temp[j];
+        }
+
+        return result;
+    }
+
     
     // Testing hook to simulate Chainlink response (ONLY for testing)
     function testFulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) external onlyOwner {
