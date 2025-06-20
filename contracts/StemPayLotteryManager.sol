@@ -6,17 +6,33 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import { VRFConsumerBaseV2Plus } from "@chainlink/contracts@1.4.0/src/v0.8/vrf/dev/VRFConsumerBaseV2Plus.sol";
-import { VRFV2PlusClient } from "@chainlink/contracts@1.4.0/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
-import "./VRFConsumerBaseV2_5Upgradeable.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
+
+abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
+    error OnlyCoordinatorCanFulfill(address have, address want);
+
+    address private vrfCoordinator;
+
+    function __VRFConsumerBaseV2_5Upgradeable_init(address _vrfCoordinator) internal onlyInitializing {
+        vrfCoordinator = _vrfCoordinator;
+    }
+
+    function fulfillRandomWords(uint256 requestId, uint256[] memory randomWords) internal virtual;
+
+    function rawFulfillRandomWords(uint256 requestId, uint256[] memory randomWords) external {
+        if (msg.sender != vrfCoordinator) {
+            revert OnlyCoordinatorCanFulfill(msg.sender, vrfCoordinator);
+        }
+        fulfillRandomWords(requestId, randomWords);
+    }
+}
 
 contract StemPayLotteryManager is
     Initializable,
     OwnableUpgradeable,
     ReentrancyGuard,
     UUPSUpgradeable,
-    VRFConsumerBaseV2Plus
-    // VRFConsumerBaseV2_5Upgradeable
+    VRFConsumerBaseV2_5Upgradeable
 {
     struct Lottery {
         address tokenAddress;
@@ -50,6 +66,7 @@ contract StemPayLotteryManager is
     uint16 public requestConfirmations;
     uint32 public numWords;
     uint256 public subscriptionId;
+    address public vrfCoordinator;
 
     mapping(uint256 => uint256) public requestToLottery;
 
@@ -58,7 +75,6 @@ contract StemPayLotteryManager is
     event LotteryDrawRequested(uint256 lotteryId, uint256 requestId);
     event WinnerSelected(uint256 lotteryId, address winner);
     event LotteryCancelled(uint256 lotteryId);
-
 
     function initialize(
         address _vrfCoordinator,
@@ -69,8 +85,9 @@ contract StemPayLotteryManager is
     ) external initializer {
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
-        __VRFConsumerBaseV2_5Upgradeable_init(_vrfCoordinator); // ✅ custom init
-       
+        __VRFConsumerBaseV2_5Upgradeable_init(_vrfCoordinator);
+
+        vrfCoordinator = _vrfCoordinator;
         keyHash = _keyHash;
         subscriptionId = _subId;
         callbackGasLimit = 200_000;
@@ -80,8 +97,6 @@ contract StemPayLotteryManager is
         investmentWallet = _investmentWallet;
         profitWallet = _profitWallet;
     }
-
-    
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
@@ -145,7 +160,7 @@ contract StemPayLotteryManager is
         require(!l.isDrawn && !l.isCancelled, "Already drawn or cancelled");
         require(l.participants.length > 0, "No participants");
 
-        uint256 requestId = s_vrfCoordinator.requestRandomWords(
+        uint256 requestId = IVRFCoordinatorV2Plus(vrfCoordinator).requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
                 subId: subscriptionId,
@@ -166,7 +181,7 @@ contract StemPayLotteryManager is
 
     function fulfillRandomWords(
         uint256 requestId,
-        uint256[] calldata randomWords
+        uint256[] memory randomWords
     ) internal override {
         uint256 lotteryId = requestToLottery[requestId];
         Lottery storage l = lotteries[lotteryId];

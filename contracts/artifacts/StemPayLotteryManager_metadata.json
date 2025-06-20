@@ -231,19 +231,6 @@
 			},
 			{
 				"inputs": [],
-				"name": "COORDINATOR",
-				"outputs": [
-					{
-						"internalType": "contract VRFCoordinatorV2Interface",
-						"name": "",
-						"type": "address"
-					}
-				],
-				"stateMutability": "view",
-				"type": "function"
-			},
-			{
-				"inputs": [],
 				"name": "UPGRADE_INTERFACE_VERSION",
 				"outputs": [
 					{
@@ -427,7 +414,7 @@
 					},
 					{
 						"internalType": "uint64",
-						"name": "_subscriptionId",
+						"name": "_subId",
 						"type": "uint64"
 					},
 					{
@@ -584,6 +571,19 @@
 			},
 			{
 				"inputs": [],
+				"name": "numWords",
+				"outputs": [
+					{
+						"internalType": "uint32",
+						"name": "",
+						"type": "uint32"
+					}
+				],
+				"stateMutability": "view",
+				"type": "function"
+			},
+			{
+				"inputs": [],
 				"name": "owner",
 				"outputs": [
 					{
@@ -683,9 +683,9 @@
 				"name": "subscriptionId",
 				"outputs": [
 					{
-						"internalType": "uint64",
+						"internalType": "uint256",
 						"name": "",
-						"type": "uint64"
+						"type": "uint256"
 					}
 				],
 				"stateMutability": "view",
@@ -733,6 +733,19 @@
 				"name": "voteCancel",
 				"outputs": [],
 				"stateMutability": "nonpayable",
+				"type": "function"
+			},
+			{
+				"inputs": [],
+				"name": "vrfCoordinator",
+				"outputs": [
+					{
+						"internalType": "address",
+						"name": "",
+						"type": "address"
+					}
+				],
+				"stateMutability": "view",
 				"type": "function"
 			}
 		],
@@ -840,12 +853,28 @@
 		"remappings": []
 	},
 	"sources": {
-		"@chainlink/contracts/src/v0.8/interfaces/VRFCoordinatorV2Interface.sol": {
-			"keccak256": "0xa9f8b7e09811f4ac9f421116b5d6bcf50b5748025c0cb012aaf5ff7c39a6b46a",
+		"@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol": {
+			"keccak256": "0x7dca2a64690ddd95ee05e422e1f61e7c1d701aaf5be1390ae12e9bd144266c36",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://d66b2096987616cda4611c109d9904863872ca5852d736b30f0e19e49afde35f",
-				"dweb:/ipfs/Qmc6jpm3k3YuJG7U2s3FWr81Vk2rdQBhdqD9sA6b8Cr9BE"
+				"bzz-raw://d8a347ae8d28007a7537abdc153d3d400d330e02339e8070dd4d783dbdb4de2e",
+				"dweb:/ipfs/QmT4rCRw9LBkTYnjRSLNoVP6qhMWA1xg7Hp3wGrRSsV5YL"
+			]
+		},
+		"@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFSubscriptionV2Plus.sol": {
+			"keccak256": "0x85b348297ce36794e3bf97a47c001fc216bd0ee243e91514a7b395f3fcd189b0",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://5b67dd54c0f1083d804f9c0ac6b6a62db1727b090f6d1afb0a8107baea7b40d8",
+				"dweb:/ipfs/QmbD4vuTA7sBtR4DxeDjKr2pC51xgw8RRef2AmodnH5B1F"
+			]
+		},
+		"@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol": {
+			"keccak256": "0x839ad7a737ef18147b518b4ec3cbaf4a49dc994db65cf8369ed4e69d169a98a6",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://882f7357f1a4d7479adda35f81c130bb9a7bfa024d5b9617c75a0539116c2a1d",
+				"dweb:/ipfs/QmWzLDgcS9jUh4AT65dQRr46ZhGHgQ4KoNfSdFiFTFqneQ"
 			]
 		},
 		"@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol": {
@@ -953,19 +982,11 @@
 			]
 		},
 		"contracts/StemPayLotteryManager.sol": {
-			"keccak256": "0x87329d8e65213ab5fdf6cc7aea15fb2b1f2920879b25132b080d01c982966df9",
+			"keccak256": "0x77fde0acf1004d8aa13e5637419f1e962fa8f5b9828d6986dc653fe8b883db09",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://cd6eda5c94ab7dd9fcd73dfb8fbca873e2d0aa96827bcf8685b970d574c6fb2b",
-				"dweb:/ipfs/QmUa4YzwYyafko2847SwcJHaeKQgKf4K3ZkdKgB7QzbvrB"
-			]
-		},
-		"contracts/VRFConsumerBaseV2_5Upgradeable.sol": {
-			"keccak256": "0x8fee77fbef6edb6156f71ee35d80c75399c1924bcd717333b1001b9e83ded738",
-			"license": "MIT",
-			"urls": [
-				"bzz-raw://ad95bd4b906c81e104bbbe85c21d168cd4780cdf14a80212549480ba756f80f2",
-				"dweb:/ipfs/QmbqkfV2pHXYoZG57H9sHBvpwqKNTB55cxHp5EBt7e9moW"
+				"bzz-raw://0569e2a145598262dadf9adc144d9e0944cfafb3b8753aa2a9c275f8e031dd3d",
+				"dweb:/ipfs/QmbSAhcjFXzRDatRGPLDX8FuzNudTh3nu1ML3mfK13kScz"
 			]
 		}
 	},
