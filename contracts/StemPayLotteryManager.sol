@@ -55,6 +55,24 @@ contract StemPayLotteryManager is
         mapping(address => bool) hasVotedCancel;
     }
 
+    struct LotteryInfo {
+        address tokenAddress;
+        uint256 participationFee;
+        uint256 refundableAmount;
+        uint256 maxParticipants;
+        uint256 drawTime;
+        uint256 prizeAmount;
+        uint256 feeToInvestment;
+        uint256 feeToProfit;
+        bool isActive;
+        bool isDrawn;
+        bool isCancelled;
+        address winner;
+        uint256 voteCount;
+        address[] participants;
+    }
+
+
     mapping(uint256 => Lottery) public lotteries;
     uint256 public lotteryCounter;
 
@@ -261,6 +279,10 @@ contract StemPayLotteryManager is
         emit EnteredLottery(toId, msg.sender);
     }
 
+    function getAllLotteryIds() external view returns (uint256[] memory) {
+        return allLotteryIds;
+    }
+
     function getEntryCount(uint256 lotteryId, address user) external view returns (uint256) {
         return lotteries[lotteryId].entryCount[user];
     }
@@ -285,14 +307,12 @@ contract StemPayLotteryManager is
             uint256 id = allLotteryIds[i];
             Lottery storage l = lotteries[id];
 
-            // Lottery is joinable if it's active, not cancelled, and draw time not reached
             if (l.isActive && !l.isCancelled && block.timestamp < l.drawTime) {
                 temp[count] = id;
                 count++;
             }
         }
 
-        // Trim to actual count
         uint256[] memory result = new uint256[](count);
         for (uint256 j = 0; j < count; j++) {
             result[j] = temp[j];
@@ -301,9 +321,43 @@ contract StemPayLotteryManager is
         return result;
     }
 
-    
-    // Testing hook to simulate Chainlink response (ONLY for testing)
-    function testFulfillRandomWords(uint256 requestId, uint256[] calldata randomWords) external onlyOwner {
-        fulfillRandomWords(requestId, randomWords);
+    function getLotteryInfo(uint256 _lotteryId) external view returns (LotteryInfo memory info) {
+        Lottery storage l = lotteries[_lotteryId];
+        info = LotteryInfo({
+            tokenAddress: l.tokenAddress,
+            participationFee: l.participationFee,
+            refundableAmount: l.refundableAmount,
+            maxParticipants: l.maxParticipants,
+            drawTime: l.drawTime,
+            prizeAmount: l.prizeAmount,
+            feeToInvestment: l.feeToInvestment,
+            feeToProfit: l.feeToProfit,
+            isActive: l.isActive,
+            isDrawn: l.isDrawn,
+            isCancelled: l.isCancelled,
+            winner: l.winner,
+            voteCount: l.voteCount,
+            participants: l.participants
+        });
+    }
+
+
+    function getUserLotteryData(uint256 lotteryId, address user)
+        external
+        view
+        returns (
+            uint256 entryCount,
+            bool hasClaimed,
+            bool hasRefunded,
+            bool hasVotedCancel
+        )
+    {
+        Lottery storage l = lotteries[lotteryId];
+        return (
+            l.entryCount[user],
+            l.hasClaimed[user],
+            l.hasRefunded[user],
+            l.hasVotedCancel[user]
+        );
     }
 }
