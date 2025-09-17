@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 
 abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
@@ -185,16 +184,9 @@ contract StemPayLotteryManager is
 
     function drawWinner(uint256 _lotteryId) external onlyOwner {
         Lottery storage l = lotteries[_lotteryId];
+        require(block.timestamp >= l.drawTime, "Too early");
         require(!l.isDrawn && !l.isCancelled, "Already drawn or cancelled");
         require(l.participants.length > 0, "No participants");
-        
-        // Check if we have enough participants
-        require(l.participants.length >= l.maxParticipants, 
-            string(abi.encodePacked("Currently ", 
-                Strings.toString(l.participants.length), 
-                " people but ", 
-                Strings.toString(l.maxParticipants), 
-                " are required")));
 
         uint256 requestId = IVRFCoordinatorV2Plus(vrfCoordinator).requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
