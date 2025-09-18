@@ -1,4 +1,6 @@
 // StemPayLotteryManager Contract ABI
+// Updated with security enhancements and new functions
+// Version: 2.0 - Security Enhanced
 export const STEM_PAY_LOTTERY_MANAGER_ABI = [
   // Events
   {
@@ -310,6 +312,45 @@ export const STEM_PAY_LOTTERY_MANAGER_ABI = [
     "type": "function"
   },
 
+  // Is Lottery Ready To Clear
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_lotteryId", "type": "uint256" }
+    ],
+    "name": "isLotteryReadyToClear",
+    "outputs": [
+      { "internalType": "bool", "name": "", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+
+  // Get Unclaimed Participants
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_lotteryId", "type": "uint256" }
+    ],
+    "name": "getUnclaimedParticipants",
+    "outputs": [
+      { "internalType": "address[]", "name": "", "type": "address[]" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+
+  // Lottery Exists
+  {
+    "inputs": [
+      { "internalType": "uint256", "name": "_lotteryId", "type": "uint256" }
+    ],
+    "name": "lotteryExists",
+    "outputs": [
+      { "internalType": "bool", "name": "", "type": "bool" }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+
   // Public Variables (getters)
   {
     "inputs": [
@@ -497,45 +538,133 @@ export const STEM_PAY_LOTTERY_MANAGER_ADDRESS = "0x00000000000000000000000000000
 export const LotteryManagerAPI = {
   // Contract instance creation helper
   createContract: (web3, address = STEM_PAY_LOTTERY_MANAGER_ADDRESS) => {
+    if (!web3) {
+      throw new Error('Web3 instance is required');
+    }
+    if (!address || address === '0x0000000000000000000000000000000000000000') {
+      throw new Error('Valid contract address is required');
+    }
     return new web3.eth.Contract(STEM_PAY_LOTTERY_MANAGER_ABI, address);
   },
 
   // Common view functions
   getLotteryInfo: async (contract, lotteryId) => {
-    return await contract.methods.getLotteryInfo(lotteryId).call();
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      return await contract.methods.getLotteryInfo(lotteryId).call();
+    } catch (error) {
+      console.error('Error getting lottery info:', error);
+      throw error;
+    }
   },
 
   getActiveLotteries: async (contract) => {
-    return await contract.methods.getActiveLotteries().call();
+    try {
+      return await contract.methods.getActiveLotteries().call();
+    } catch (error) {
+      console.error('Error getting active lotteries:', error);
+      throw error;
+    }
   },
 
   getAllLotteryIds: async (contract) => {
-    return await contract.methods.getAllLotteryIds().call();
+    try {
+      return await contract.methods.getAllLotteryIds().call();
+    } catch (error) {
+      console.error('Error getting all lottery IDs:', error);
+      throw error;
+    }
   },
 
   getParticipants: async (contract, lotteryId) => {
-    return await contract.methods.getParticipants(lotteryId).call();
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      return await contract.methods.getParticipants(lotteryId).call();
+    } catch (error) {
+      console.error('Error getting participants:', error);
+      throw error;
+    }
   },
 
   getUserLotteryData: async (contract, lotteryId, userAddress) => {
     return await contract.methods.getUserLotteryData(lotteryId, userAddress).call();
   },
 
+  isLotteryReadyToClear: async (contract, lotteryId) => {
+    return await contract.methods.isLotteryReadyToClear(lotteryId).call();
+  },
+
+  getUnclaimedParticipants: async (contract, lotteryId) => {
+    return await contract.methods.getUnclaimedParticipants(lotteryId).call();
+  },
+
+  lotteryExists: async (contract, lotteryId) => {
+    return await contract.methods.lotteryExists(lotteryId).call();
+  },
+
   // Common transaction functions
   enterLottery: async (contract, lotteryId, fromAddress) => {
-    return await contract.methods.enterLottery(lotteryId).send({ from: fromAddress });
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      return await contract.methods.enterLottery(lotteryId).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error entering lottery:', error);
+      throw error;
+    }
   },
 
   voteCancel: async (contract, lotteryId, fromAddress) => {
-    return await contract.methods.voteCancel(lotteryId).send({ from: fromAddress });
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      return await contract.methods.voteCancel(lotteryId).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error voting to cancel:', error);
+      throw error;
+    }
   },
 
   claimRefund: async (contract, lotteryId, fromAddress) => {
-    return await contract.methods.claimRefund(lotteryId).send({ from: fromAddress });
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      return await contract.methods.claimRefund(lotteryId).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error claiming refund:', error);
+      throw error;
+    }
   },
 
   claimPrize: async (contract, lotteryId, fromAddress) => {
-    return await contract.methods.claimPrize(lotteryId).send({ from: fromAddress });
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      return await contract.methods.claimPrize(lotteryId).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error claiming prize:', error);
+      throw error;
+    }
   },
 
   migrateToLottery: async (contract, fromId, toId, fromAddress) => {
@@ -544,35 +673,101 @@ export const LotteryManagerAPI = {
 
   // Owner functions
   createLottery: async (contract, lotteryParams, fromAddress) => {
-    const {
-      tokenAddress,
-      participationFee,
-      refundableAmount,
-      maxParticipants,
-      drawTime,
-      prizeAmount,
-      feeToInvestment,
-      feeToProfit
-    } = lotteryParams;
-    
-    return await contract.methods.createLottery(
-      tokenAddress,
-      participationFee,
-      refundableAmount,
-      maxParticipants,
-      drawTime,
-      prizeAmount,
-      feeToInvestment,
-      feeToProfit
-    ).send({ from: fromAddress });
+    try {
+      const {
+        tokenAddress,
+        participationFee,
+        refundableAmount,
+        maxParticipants,
+        drawTime,
+        prizeAmount,
+        feeToInvestment,
+        feeToProfit
+      } = lotteryParams;
+      
+      // Validate parameters
+      if (!tokenAddress || tokenAddress === '0x0000000000000000000000000000000000000000') {
+        throw new Error('Invalid token address');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      if (participationFee <= 0 || refundableAmount <= 0 || maxParticipants <= 0 || prizeAmount <= 0 || feeToInvestment <= 0 || feeToProfit <= 0) {
+        throw new Error('All amounts must be greater than 0');
+      }
+      if (participationFee < refundableAmount) {
+        throw new Error('Participation fee must be >= refundable amount');
+      }
+      if (drawTime <= Math.floor(Date.now() / 1000)) {
+        throw new Error('Draw time must be in the future');
+      }
+      
+      return await contract.methods.createLottery(
+        tokenAddress,
+        participationFee,
+        refundableAmount,
+        maxParticipants,
+        drawTime,
+        prizeAmount,
+        feeToInvestment,
+        feeToProfit
+      ).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error creating lottery:', error);
+      throw error;
+    }
   },
 
   drawWinner: async (contract, lotteryId, fromAddress) => {
-    return await contract.methods.drawWinner(lotteryId).send({ from: fromAddress });
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      return await contract.methods.drawWinner(lotteryId).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error drawing winner:', error);
+      throw error;
+    }
   },
 
   cancelLottery: async (contract, lotteryId, fromAddress) => {
-    return await contract.methods.cancelLottery(lotteryId).send({ from: fromAddress });
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      return await contract.methods.cancelLottery(lotteryId).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error cancelling lottery:', error);
+      throw error;
+    }
+  },
+
+  clearLotteryData: async (contract, lotteryId, fromAddress) => {
+    try {
+      if (!lotteryId || lotteryId <= 0) {
+        throw new Error('Invalid lottery ID');
+      }
+      if (!fromAddress) {
+        throw new Error('From address is required');
+      }
+      
+      // Check if lottery is ready to clear before attempting
+      const isReady = await contract.methods.isLotteryReadyToClear(lotteryId).call();
+      if (!isReady) {
+        throw new Error('Lottery is not ready to be cleared. All participants must claim refunds and winner must claim prize.');
+      }
+      
+      return await contract.methods.clearLotteryData(lotteryId).send({ from: fromAddress });
+    } catch (error) {
+      console.error('Error clearing lottery data:', error);
+      throw error;
+    }
   }
 };
 
@@ -632,6 +827,158 @@ export const Utils = {
     return lotteryInfo.winner === userData.address &&
            !userData.hasClaimed &&
            lotteryInfo.isDrawn;
+  },
+
+  // Check if lottery is ready to be cleared
+  isLotteryReadyToClear: async (contract, lotteryId) => {
+    try {
+      return await contract.methods.isLotteryReadyToClear(lotteryId).call();
+    } catch (error) {
+      console.error('Error checking if lottery is ready to clear:', error);
+      return false;
+    }
+  },
+
+  // Get unclaimed participants for a lottery
+  getUnclaimedParticipants: async (contract, lotteryId) => {
+    try {
+      return await contract.methods.getUnclaimedParticipants(lotteryId).call();
+    } catch (error) {
+      console.error('Error getting unclaimed participants:', error);
+      return [];
+    }
+  },
+
+  // Check if lottery exists
+  lotteryExists: async (contract, lotteryId) => {
+    try {
+      return await contract.methods.lotteryExists(lotteryId).call();
+    } catch (error) {
+      console.error('Error checking if lottery exists:', error);
+      return false;
+    }
+  },
+
+  // Validate lottery ID before operations
+  validateLotteryId: async (contract, lotteryId) => {
+    if (!lotteryId || lotteryId <= 0) {
+      return { valid: false, error: 'Invalid lottery ID' };
+    }
+    
+    try {
+      const exists = await contract.methods.lotteryExists(lotteryId).call();
+      if (!exists) {
+        return { valid: false, error: 'Lottery does not exist' };
+      }
+      return { valid: true };
+    } catch (error) {
+      return { valid: false, error: 'Error validating lottery ID' };
+    }
+  },
+
+  // Get lottery status summary
+  getLotteryStatus: (lotteryInfo) => {
+    const now = Math.floor(Date.now() / 1000);
+    const drawTime = parseInt(lotteryInfo.drawTime);
+    
+    if (lotteryInfo.isCancelled) {
+      return 'CANCELLED';
+    } else if (lotteryInfo.isDrawn) {
+      return 'DRAWN';
+    } else if (!lotteryInfo.isActive) {
+      return 'INACTIVE';
+    } else if (now >= drawTime) {
+      return 'DRAW_TIME_PASSED';
+    } else if (lotteryInfo.participants.length >= lotteryInfo.maxParticipants) {
+      return 'FULL';
+    } else {
+      return 'ACTIVE';
+    }
+  }
+};
+
+// Security utilities for enhanced contract interaction
+export const SecurityUtils = {
+  // Validate all lottery parameters before creation
+  validateLotteryParams: (params) => {
+    const errors = [];
+    
+    if (!params.tokenAddress || params.tokenAddress === '0x0000000000000000000000000000000000000000') {
+      errors.push('Invalid token address');
+    }
+    if (!params.participationFee || params.participationFee <= 0) {
+      errors.push('Participation fee must be greater than 0');
+    }
+    if (!params.refundableAmount || params.refundableAmount <= 0) {
+      errors.push('Refundable amount must be greater than 0');
+    }
+    if (!params.maxParticipants || params.maxParticipants <= 0) {
+      errors.push('Max participants must be greater than 0');
+    }
+    if (!params.drawTime || params.drawTime <= Math.floor(Date.now() / 1000)) {
+      errors.push('Draw time must be in the future');
+    }
+    if (!params.prizeAmount || params.prizeAmount <= 0) {
+      errors.push('Prize amount must be greater than 0');
+    }
+    if (!params.feeToInvestment || params.feeToInvestment <= 0) {
+      errors.push('Investment fee must be greater than 0');
+    }
+    if (!params.feeToProfit || params.feeToProfit <= 0) {
+      errors.push('Profit fee must be greater than 0');
+    }
+    if (params.participationFee < params.refundableAmount) {
+      errors.push('Participation fee must be >= refundable amount');
+    }
+    
+    return {
+      valid: errors.length === 0,
+      errors: errors
+    };
+  },
+
+  // Check if user can perform specific actions
+  canPerformAction: async (contract, action, lotteryId, userAddress) => {
+    try {
+      const lotteryInfo = await contract.methods.getLotteryInfo(lotteryId).call();
+      const userData = await contract.methods.getUserLotteryData(lotteryId, userAddress).call();
+      
+      switch (action) {
+        case 'enter':
+          return Utils.canEnterLottery(lotteryInfo, userData.entryCount);
+        case 'voteCancel':
+          return lotteryInfo.isActive && !lotteryInfo.isCancelled && !lotteryInfo.isDrawn && userData.entryCount > 0 && !userData.hasVotedCancel;
+        case 'claimRefund':
+          return Utils.canClaimRefund(lotteryInfo, { ...userData, address: userAddress });
+        case 'claimPrize':
+          return Utils.canClaimPrize(lotteryInfo, { ...userData, address: userAddress });
+        default:
+          return false;
+      }
+    } catch (error) {
+      console.error('Error checking action permission:', error);
+      return false;
+    }
+  },
+
+  // Get comprehensive lottery status
+  getLotteryStatus: async (contract, lotteryId) => {
+    try {
+      const lotteryInfo = await contract.methods.getLotteryInfo(lotteryId).call();
+      const isReadyToClear = await contract.methods.isLotteryReadyToClear(lotteryId).call();
+      const unclaimedParticipants = await contract.methods.getUnclaimedParticipants(lotteryId).call();
+      
+      return {
+        ...lotteryInfo,
+        status: Utils.getLotteryStatus(lotteryInfo),
+        isReadyToClear,
+        unclaimedParticipantsCount: unclaimedParticipants.length,
+        unclaimedParticipants
+      };
+    } catch (error) {
+      console.error('Error getting lottery status:', error);
+      throw error;
+    }
   }
 };
 
@@ -640,5 +987,6 @@ export default {
   STEM_PAY_LOTTERY_MANAGER_ADDRESS,
   LotteryManagerAPI,
   EventFilters,
-  Utils
+  Utils,
+  SecurityUtils
 };

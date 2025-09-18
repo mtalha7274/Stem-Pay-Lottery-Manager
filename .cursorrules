@@ -1,0 +1,20 @@
+# Cursor Rules for StemPay Lottery Manager
+
+## Code Style Rules
+
+### Comments
+- **NO COMMENTS** - Make code descriptive and self-documenting instead of using comments
+- **Exception**: Only a single descriptive comment is allowed on the first line of any file in the `contracts/` folder
+- Remove all existing comments from code files
+- Use descriptive variable names, function names, and clear logic flow instead of comments
+
+### Code Quality
+- Write self-documenting code with clear, descriptive names
+- Use meaningful variable and function names that explain their purpose
+- Structure code logically to make it easy to understand without comments
+- Prefer explicit code over commented explanations
+
+### File Organization
+- Keep contracts folder clean with only essential first-line comments
+- Remove all inline comments, block comments, and documentation comments
+- Focus on writing code that speaks for itself through good naming and structure

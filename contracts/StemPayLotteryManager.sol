@@ -104,6 +104,12 @@ contract StemPayLotteryManager is
         address _investmentWallet,
         address _profitWallet
     ) external initializer {
+        require(_vrfCoordinator != address(0), "Invalid VRF coordinator");
+        require(_investmentWallet != address(0), "Invalid investment wallet");
+        require(_profitWallet != address(0), "Invalid profit wallet");
+        require(_keyHash != bytes32(0), "Invalid key hash");
+        require(_subId > 0, "Invalid subscription ID");
+        
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
         __VRFConsumerBaseV2_5Upgradeable_init(_vrfCoordinator);
@@ -131,8 +137,15 @@ contract StemPayLotteryManager is
         uint256 _feeToInvestment,
         uint256 _feeToProfit
     ) external onlyOwner {
+        require(_tokenAddress != address(0), "Invalid token address");
         require(_participationFee >= _refundableAmount, "Refund <= fee");
+        require(_participationFee > 0, "Fee must be > 0");
+        require(_refundableAmount > 0, "Refund must be > 0");
+        require(_maxParticipants > 0, "Max participants must be > 0");
         require(_drawTime > block.timestamp, "Invalid draw time");
+        require(_prizeAmount > 0, "Prize must be > 0");
+        require(_feeToInvestment > 0, "Investment fee must be > 0");
+        require(_feeToProfit > 0, "Profit fee must be > 0");
 
         lotteryCounter++;
         Lottery storage l = lotteries[lotteryCounter];
@@ -153,6 +166,7 @@ contract StemPayLotteryManager is
 
 
     function enterLottery(uint256 _lotteryId) external nonReentrant {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         require(l.isActive && !l.isCancelled, "Inactive or cancelled");
         require(l.participants.length < l.maxParticipants, "Max participants");
@@ -162,7 +176,7 @@ contract StemPayLotteryManager is
             require(l.participants.length < l.maxParticipants, "Lottery closed - max participants reached");
         }
 
-        IERC20(l.tokenAddress).transferFrom(msg.sender, address(this), l.participationFee);
+        require(IERC20(l.tokenAddress).transferFrom(msg.sender, address(this), l.participationFee), "Transfer failed");
 
         l.participants.push(msg.sender);
         l.entryCount[msg.sender]++;
@@ -171,19 +185,22 @@ contract StemPayLotteryManager is
     }
 
     function voteCancel(uint256 _lotteryId) external {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
+        require(l.isActive && !l.isCancelled && !l.isDrawn, "Lottery not active");
         require(!l.hasVotedCancel[msg.sender], "Already voted");
         require(l.entryCount[msg.sender] > 0, "Not in lottery");
 
         l.hasVotedCancel[msg.sender] = true;
         l.voteCount++;
-        if (l.voteCount * 3 >= l.participants.length * 2) {
+        if (l.participants.length > 0 && l.voteCount * 3 >= l.participants.length * 2) {
             l.isCancelled = true;
             emit LotteryCancelled(_lotteryId);
         }
     }
 
     function drawWinner(uint256 _lotteryId) external onlyOwner {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         require(!l.isDrawn && !l.isCancelled, "Already drawn or cancelled");
         require(l.participants.length > 0, "No participants");
@@ -220,21 +237,26 @@ contract StemPayLotteryManager is
         uint256[] memory randomWords
     ) internal override {
         uint256 lotteryId = requestToLottery[requestId];
+        require(lotteryId > 0, "Invalid request ID");
+        require(lotteryId <= lotteryCounter, "Invalid lottery ID");
+        
         Lottery storage l = lotteries[lotteryId];
-
         require(l.isDrawn && l.winner == address(0), "Already fulfilled");
+        require(randomWords.length > 0, "No random words received");
 
+        require(l.participants.length > 0, "No participants");
         uint256 winnerIndex = randomWords[0] % l.participants.length;
         l.winner = l.participants[winnerIndex];
 
         IERC20 token = IERC20(l.tokenAddress);
-        token.transfer(investmentWallet, l.feeToInvestment);
-        token.transfer(profitWallet, l.feeToProfit);
+        require(token.transfer(investmentWallet, l.feeToInvestment), "Investment transfer failed");
+        require(token.transfer(profitWallet, l.feeToProfit), "Profit transfer failed");
 
         emit WinnerSelected(lotteryId, l.winner);
     }
 
     function cancelLottery(uint256 _lotteryId) external onlyOwner {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         require(!l.isCancelled && !l.isDrawn, "Already finalized");
         l.isCancelled = true;
@@ -242,48 +264,141 @@ contract StemPayLotteryManager is
     }
 
     function claimRefund(uint256 _lotteryId) external nonReentrant {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         require(l.isCancelled || (l.isDrawn && l.winner != msg.sender), "Not eligible");
+        require(l.isActive || l.isCancelled || l.isDrawn, "Lottery not finalized");
         require(!l.hasRefunded[msg.sender], "Already refunded");
         require(l.entryCount[msg.sender] > 0, "No entries");
 
         l.hasRefunded[msg.sender] = true;
         uint256 amount = l.refundableAmount * l.entryCount[msg.sender];
-        IERC20(l.tokenAddress).transfer(msg.sender, amount);
+        require(IERC20(l.tokenAddress).transfer(msg.sender, amount), "Refund transfer failed");
     }
 
     function claimPrize(uint256 _lotteryId) external nonReentrant {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
+        require(l.isDrawn, "Lottery not drawn");
         require(l.winner == msg.sender, "Not winner");
         require(!l.hasClaimed[msg.sender], "Already claimed");
 
         l.hasClaimed[msg.sender] = true;
-        IERC20(l.tokenAddress).transfer(msg.sender, l.prizeAmount);
+        require(IERC20(l.tokenAddress).transfer(msg.sender, l.prizeAmount), "Prize transfer failed");
+    }
+
+    function allParticipantsClaimedRefunds(uint256 _lotteryId) internal view returns (bool) {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
+        Lottery storage l = lotteries[_lotteryId];
+        
+        for (uint256 i = 0; i < l.participants.length; i++) {
+            address participant = l.participants[i];
+            
+            // Skip winner - they claim prize, not refund
+            if (participant == l.winner) {
+                continue;
+            }
+            
+            // If participant hasn't claimed refund, return false
+            if (!l.hasRefunded[participant]) {
+                return false;
+            }
+        }
+        
+        return true;
+    }
+
+    function isLotteryReadyToClear(uint256 _lotteryId) external view returns (bool) {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
+        Lottery storage l = lotteries[_lotteryId];
+        
+        // Must be drawn or cancelled
+        if (!l.isDrawn && !l.isCancelled) {
+            return false;
+        }
+        
+        // Winner must have claimed prize (if there's a winner)
+        if (l.winner != address(0) && !l.hasClaimed[l.winner]) {
+            return false;
+        }
+        
+        // All participants must have claimed refunds
+        return allParticipantsClaimedRefunds(_lotteryId);
+    }
+
+    function getUnclaimedParticipants(uint256 _lotteryId) external view returns (address[] memory) {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
+        Lottery storage l = lotteries[_lotteryId];
+        address[] memory temp = new address[](l.participants.length);
+        uint256 count = 0;
+        
+        for (uint256 i = 0; i < l.participants.length; i++) {
+            address participant = l.participants[i];
+            
+            // Skip winner - they claim prize, not refund
+            if (participant == l.winner) {
+                continue;
+            }
+            
+            // If participant hasn't claimed refund, add to list
+            if (!l.hasRefunded[participant]) {
+                temp[count] = participant;
+                count++;
+            }
+        }
+        
+        // Create result array with correct size
+        address[] memory result = new address[](count);
+        for (uint256 j = 0; j < count; j++) {
+            result[j] = temp[j];
+        }
+        
+        return result;
     }
 
     function clearLotteryData(uint256 _lotteryId) external onlyOwner {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
+        Lottery storage l = lotteries[_lotteryId];
+        
+        // Only allow clearing if lottery is drawn or cancelled
+        require(l.isDrawn || l.isCancelled, "Lottery not finalized");
+        
+        // Check if winner has claimed prize (if there's a winner)
+        if (l.winner != address(0)) {
+            require(l.hasClaimed[l.winner], "Winner hasn't claimed prize");
+        }
+        
+        // Check if all participants have claimed refunds
+        require(allParticipantsClaimedRefunds(_lotteryId), "Not all participants claimed refunds");
+        
         delete lotteries[_lotteryId];
     }
 
     function getParticipants(uint256 _lotteryId) external view returns (address[] memory) {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         return lotteries[_lotteryId].participants;
     }
 
     function migrateToLottery(uint256 fromId, uint256 toId) external nonReentrant {
+        require(fromId > 0 && fromId <= lotteryCounter, "Invalid from lottery ID");
+        require(toId > 0 && toId <= lotteryCounter, "Invalid to lottery ID");
+        require(fromId != toId, "Cannot migrate to same lottery");
         Lottery storage fromL = lotteries[fromId];
         Lottery storage toL = lotteries[toId];
 
         require(fromL.entryCount[msg.sender] > 0, "Not in old");
         require(!fromL.hasRefunded[msg.sender], "Refunded already");
         require(fromL.isCancelled || (fromL.isDrawn && fromL.winner != msg.sender), "Old not eligible");
+        require(fromL.isActive || fromL.isCancelled || fromL.isDrawn, "Old lottery not finalized");
 
         require(toL.isActive && !toL.isCancelled, "New lottery inactive");
         require(block.timestamp < toL.drawTime, "Too late for new");
+        require(toL.participants.length < toL.maxParticipants, "New lottery full");
 
         fromL.hasRefunded[msg.sender] = true;
 
         uint256 topUp = toL.participationFee - toL.refundableAmount;
-        IERC20(toL.tokenAddress).transferFrom(msg.sender, address(this), topUp);
+        require(IERC20(toL.tokenAddress).transferFrom(msg.sender, address(this), topUp), "Migration transfer failed");
 
         toL.participants.push(msg.sender);
         toL.entryCount[msg.sender]++;
@@ -295,19 +410,27 @@ contract StemPayLotteryManager is
         return allLotteryIds;
     }
 
+    function lotteryExists(uint256 _lotteryId) external view returns (bool) {
+        return _lotteryId > 0 && _lotteryId <= lotteryCounter;
+    }
+
     function getEntryCount(uint256 lotteryId, address user) external view returns (uint256) {
+        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
         return lotteries[lotteryId].entryCount[user];
     }
 
     function hasUserRefunded(uint256 lotteryId, address user) external view returns (bool) {
+        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
         return lotteries[lotteryId].hasRefunded[user];
     }
 
     function hasUserClaimed(uint256 lotteryId, address user) external view returns (bool) {
+        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
         return lotteries[lotteryId].hasClaimed[user];
     }
 
     function hasUserVotedCancel(uint256 lotteryId, address user) external view returns (bool) {
+        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
         return lotteries[lotteryId].hasVotedCancel[user];
     }
 
@@ -334,6 +457,7 @@ contract StemPayLotteryManager is
     }
 
     function getLotteryInfo(uint256 _lotteryId) external view returns (LotteryInfo memory info) {
+        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         info = LotteryInfo({
             tokenAddress: l.tokenAddress,
@@ -364,6 +488,7 @@ contract StemPayLotteryManager is
             bool hasVotedCancel
         )
     {
+        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[lotteryId];
         return (
             l.entryCount[user],
