@@ -1,0 +1,16 @@
+# Cursor Rules
+
+## Code Style
+- No comments in code - code should be self-documenting
+- Use descriptive variable and function names
+- Follow consistent naming conventions (camelCase for variables/functions, PascalCase for classes)
+- Keep functions small and focused on single responsibility
+
+## Code Organization
+- Group related functionality together
+- Minimize code duplication
+- Keep imports organized and minimal
+
+## Error Handling
+- Handle errors gracefully with appropriate error messages
+- Validate inputs and handle edge cases
