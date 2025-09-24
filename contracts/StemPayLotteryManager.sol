@@ -6,7 +6,6 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "@openzeppelin/contracts/utils/Strings.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
 
 abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
@@ -38,41 +37,39 @@ contract StemPayLotteryManager is
     struct Lottery {
         address tokenAddress;
         uint256 participationFee;
-        uint256 refundableAmount;
         uint256 maxParticipants;
         uint256 drawTime;
-        uint256 prizeAmount;
-        uint256 feeToInvestment;
-        uint256 feeToProfit;
+        uint256 prizePercentage;
+        uint256 investmentPercentage;
+        uint256 profitPercentage;
         bool isActive;
         bool isDrawn;
         bool isCancelled;
         address[] participants;
         address winner;
         uint256 voteCount;
+        uint256 drawTimestamp;
         mapping(address => uint256) entryCount;
-        mapping(address => bool) hasClaimed;
-        mapping(address => bool) hasRefunded;
+        mapping(address => bool) hasWithdrawn;
         mapping(address => bool) hasVotedCancel;
     }
 
     struct LotteryInfo {
         address tokenAddress;
         uint256 participationFee;
-        uint256 refundableAmount;
         uint256 maxParticipants;
         uint256 drawTime;
-        uint256 prizeAmount;
-        uint256 feeToInvestment;
-        uint256 feeToProfit;
+        uint256 prizePercentage;
+        uint256 investmentPercentage;
+        uint256 profitPercentage;
         bool isActive;
         bool isDrawn;
         bool isCancelled;
         address winner;
         uint256 voteCount;
+        uint256 drawTimestamp;
         address[] participants;
     }
-
 
     mapping(uint256 => Lottery) public lotteries;
     uint256 public lotteryCounter;
@@ -87,15 +84,20 @@ contract StemPayLotteryManager is
     uint256 public subscriptionId;
     address public vrfCoordinator;
 
-    uint256[] public allLotteryIds;
+    uint256[] public activeLotteryIds;
+    uint256[] public drawnLotteryIds;
 
     mapping(uint256 => uint256) public requestToLottery;
+
+    uint256 constant REFUND_PERIOD = 60 days;
 
     event LotteryCreated(uint256 lotteryId);
     event EnteredLottery(uint256 lotteryId, address user);
     event LotteryDrawRequested(uint256 lotteryId, uint256 requestId);
     event WinnerSelected(uint256 lotteryId, address winner);
     event LotteryCancelled(uint256 lotteryId);
+    event FundsWithdrawn(uint256 lotteryId, address user, uint256 amount);
+    event LotteryAutoDeleted(uint256 lotteryId);
 
     function initialize(
         address _vrfCoordinator,
@@ -130,56 +132,59 @@ contract StemPayLotteryManager is
     function createLottery(
         address _tokenAddress,
         uint256 _participationFee,
-        uint256 _refundableAmount,
         uint256 _maxParticipants,
         uint256 _drawTime,
-        uint256 _prizeAmount,
-        uint256 _feeToInvestment,
-        uint256 _feeToProfit
+        uint256 _prizePercentage,
+        uint256 _investmentPercentage,
+        uint256 _profitPercentage
     ) external onlyOwner {
         require(_tokenAddress != address(0), "Invalid token address");
-        require(_participationFee >= _refundableAmount, "Refund <= fee");
         require(_participationFee > 0, "Fee must be > 0");
-        require(_refundableAmount > 0, "Refund must be > 0");
         require(_maxParticipants > 0, "Max participants must be > 0");
         require(_drawTime > block.timestamp, "Invalid draw time");
-        require(_prizeAmount > 0, "Prize must be > 0");
-        require(_feeToInvestment > 0, "Investment fee must be > 0");
-        require(_feeToProfit > 0, "Profit fee must be > 0");
+        require(_prizePercentage > 0, "Prize percentage must be > 0");
+        require(_investmentPercentage > 0, "Investment percentage must be > 0");
+        require(_profitPercentage > 0, "Profit percentage must be > 0");
+        require(_prizePercentage + _investmentPercentage + _profitPercentage == 100, "Percentages must sum to 100");
 
         lotteryCounter++;
         Lottery storage l = lotteries[lotteryCounter];
         l.tokenAddress = _tokenAddress;
         l.participationFee = _participationFee;
-        l.refundableAmount = _refundableAmount;
         l.maxParticipants = _maxParticipants;
         l.drawTime = _drawTime;
-        l.prizeAmount = _prizeAmount;
-        l.feeToInvestment = _feeToInvestment;
-        l.feeToProfit = _feeToProfit;
+        l.prizePercentage = _prizePercentage;
+        l.investmentPercentage = _investmentPercentage;
+        l.profitPercentage = _profitPercentage;
         l.isActive = true;
 
-        allLotteryIds.push(lotteryCounter); // ✅ track this lottery for later reference
+        activeLotteryIds.push(lotteryCounter);
 
         emit LotteryCreated(lotteryCounter);
     }
 
-
     function enterLottery(uint256 _lotteryId) external nonReentrant {
         require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
-        require(l.isActive && !l.isCancelled, "Inactive or cancelled");
-        require(l.participants.length < l.maxParticipants, "Max participants");
+        require(l.isActive && !l.isCancelled && !l.isDrawn, "Lottery not available");
         
-        // Allow entries after draw time only if there aren't enough participants
-        if (block.timestamp >= l.drawTime) {
-            require(l.participants.length < l.maxParticipants, "Lottery closed - max participants reached");
+        bool beforeDrawTime = block.timestamp < l.drawTime;
+        bool hasRequiredParticipants = l.participants.length >= l.maxParticipants;
+        
+        if (beforeDrawTime) {
+            require(true, "Can join before draw time");
+        } else {
+            require(!hasRequiredParticipants, "Cannot join after draw time if required participants reached");
         }
 
         require(IERC20(l.tokenAddress).transferFrom(msg.sender, address(this), l.participationFee), "Transfer failed");
 
         l.participants.push(msg.sender);
         l.entryCount[msg.sender]++;
+
+        if (!beforeDrawTime && l.participants.length >= l.maxParticipants) {
+            _autoDrawLottery(_lotteryId);
+        }
 
         emit EnteredLottery(_lotteryId, msg.sender);
     }
@@ -193,8 +198,10 @@ contract StemPayLotteryManager is
 
         l.hasVotedCancel[msg.sender] = true;
         l.voteCount++;
+        
         if (l.participants.length > 0 && l.voteCount * 3 >= l.participants.length * 2) {
             l.isCancelled = true;
+            _removeFromActiveLotteries(_lotteryId);
             emit LotteryCancelled(_lotteryId);
         }
     }
@@ -203,16 +210,19 @@ contract StemPayLotteryManager is
         require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         require(!l.isDrawn && !l.isCancelled, "Already drawn or cancelled");
-        require(l.participants.length > 0, "No participants");
-        
-        // Check if we have enough participants
-        require(l.participants.length >= l.maxParticipants, 
-            string(abi.encodePacked("Currently ", 
-                Strings.toString(l.participants.length), 
-                " people but ", 
-                Strings.toString(l.maxParticipants), 
-                " are required")));
+        require(l.participants.length >= l.maxParticipants, "Not enough participants");
 
+        _requestDraw(_lotteryId);
+    }
+
+    function _autoDrawLottery(uint256 _lotteryId) internal {
+        Lottery storage l = lotteries[_lotteryId];
+        if (l.participants.length >= l.maxParticipants && !l.isDrawn && !l.isCancelled) {
+            _requestDraw(_lotteryId);
+        }
+    }
+
+    function _requestDraw(uint256 _lotteryId) internal {
         uint256 requestId = IVRFCoordinatorV2Plus(vrfCoordinator).requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
@@ -227,7 +237,11 @@ contract StemPayLotteryManager is
         );
 
         requestToLottery[requestId] = _lotteryId;
-        l.isDrawn = true;
+        lotteries[_lotteryId].isDrawn = true;
+        lotteries[_lotteryId].drawTimestamp = block.timestamp;
+
+        _removeFromActiveLotteries(_lotteryId);
+        drawnLotteryIds.push(_lotteryId);
 
         emit LotteryDrawRequested(_lotteryId, requestId);
     }
@@ -248,9 +262,13 @@ contract StemPayLotteryManager is
         uint256 winnerIndex = randomWords[0] % l.participants.length;
         l.winner = l.participants[winnerIndex];
 
+        uint256 totalFunds = l.participationFee * l.participants.length;
+        uint256 investmentAmount = (totalFunds * l.investmentPercentage) / 100;
+        uint256 profitAmount = (totalFunds * l.profitPercentage) / 100;
+
         IERC20 token = IERC20(l.tokenAddress);
-        require(token.transfer(investmentWallet, l.feeToInvestment), "Investment transfer failed");
-        require(token.transfer(profitWallet, l.feeToProfit), "Profit transfer failed");
+        require(token.transfer(investmentWallet, investmentAmount), "Investment transfer failed");
+        require(token.transfer(profitWallet, profitAmount), "Profit transfer failed");
 
         emit WinnerSelected(lotteryId, l.winner);
     }
@@ -259,201 +277,117 @@ contract StemPayLotteryManager is
         require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         require(!l.isCancelled && !l.isDrawn, "Already finalized");
+        
         l.isCancelled = true;
+        _removeFromActiveLotteries(_lotteryId);
         emit LotteryCancelled(_lotteryId);
     }
 
-    function claimRefund(uint256 _lotteryId) external nonReentrant {
+    function withdrawFunds(uint256 _lotteryId) external nonReentrant {
         require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
-        require(l.isCancelled || (l.isDrawn && l.winner != msg.sender), "Not eligible");
-        require(l.isActive || l.isCancelled || l.isDrawn, "Lottery not finalized");
-        require(!l.hasRefunded[msg.sender], "Already refunded");
+        require(l.isCancelled || l.isDrawn, "Lottery not finalized");
+        require(!l.hasWithdrawn[msg.sender], "Already withdrawn");
         require(l.entryCount[msg.sender] > 0, "No entries");
 
-        l.hasRefunded[msg.sender] = true;
-        uint256 amount = l.refundableAmount * l.entryCount[msg.sender];
-        require(IERC20(l.tokenAddress).transfer(msg.sender, amount), "Refund transfer failed");
+        uint256 amount;
+        
+        if (l.isCancelled) {
+            amount = l.participationFee * l.entryCount[msg.sender];
+        } else if (l.isDrawn) {
+            if (l.winner == msg.sender) {
+                uint256 totalFunds = l.participationFee * l.participants.length;
+                amount = (totalFunds * l.prizePercentage) / 100;
+            } else {
+                require(block.timestamp <= l.drawTimestamp + REFUND_PERIOD, "Refund period expired");
+                uint256 totalFunds = l.participationFee * l.participants.length;
+                uint256 refundPerParticipant = (totalFunds * l.prizePercentage) / (100 * (l.participants.length - 1));
+                amount = refundPerParticipant * l.entryCount[msg.sender];
+            }
+        }
+
+        require(amount > 0, "No funds to withdraw");
+        l.hasWithdrawn[msg.sender] = true;
+
+        require(IERC20(l.tokenAddress).transfer(msg.sender, amount), "Transfer failed");
+        emit FundsWithdrawn(_lotteryId, msg.sender, amount);
+
+        _checkAndDeleteLottery(_lotteryId);
     }
 
-    function claimPrize(uint256 _lotteryId) external nonReentrant {
+    function withdrawExpiredRefunds(uint256 _lotteryId) external onlyOwner {
         require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         Lottery storage l = lotteries[_lotteryId];
         require(l.isDrawn, "Lottery not drawn");
-        require(l.winner == msg.sender, "Not winner");
-        require(!l.hasClaimed[msg.sender], "Already claimed");
+        require(block.timestamp > l.drawTimestamp + REFUND_PERIOD, "Refund period not expired");
 
-        l.hasClaimed[msg.sender] = true;
-        require(IERC20(l.tokenAddress).transfer(msg.sender, l.prizeAmount), "Prize transfer failed");
-    }
-
-    function allParticipantsClaimedRefunds(uint256 _lotteryId) internal view returns (bool) {
-        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
-        Lottery storage l = lotteries[_lotteryId];
-        
+        uint256 totalRefunds = 0;
         for (uint256 i = 0; i < l.participants.length; i++) {
             address participant = l.participants[i];
-            
-            // Skip winner - they claim prize, not refund
-            if (participant == l.winner) {
-                continue;
-            }
-            
-            // If participant hasn't claimed refund, return false
-            if (!l.hasRefunded[participant]) {
-                return false;
+            if (participant != l.winner && !l.hasWithdrawn[participant]) {
+                uint256 totalFunds = l.participationFee * l.participants.length;
+                uint256 refundPerParticipant = (totalFunds * l.prizePercentage) / (100 * (l.participants.length - 1));
+                totalRefunds += refundPerParticipant * l.entryCount[participant];
+                l.hasWithdrawn[participant] = true;
             }
         }
-        
-        return true;
+
+        if (totalRefunds > 0) {
+            require(IERC20(l.tokenAddress).transfer(owner(), totalRefunds), "Transfer failed");
+        }
+
+        _checkAndDeleteLottery(_lotteryId);
     }
 
-    function isLotteryReadyToClear(uint256 _lotteryId) external view returns (bool) {
-        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
+    function _checkAndDeleteLottery(uint256 _lotteryId) internal {
         Lottery storage l = lotteries[_lotteryId];
         
-        // Must be drawn or cancelled
-        if (!l.isDrawn && !l.isCancelled) {
-            return false;
-        }
-        
-        // Winner must have claimed prize (if there's a winner)
-        if (l.winner != address(0) && !l.hasClaimed[l.winner]) {
-            return false;
-        }
-        
-        // All participants must have claimed refunds
-        return allParticipantsClaimedRefunds(_lotteryId);
-    }
-
-    function getUnclaimedParticipants(uint256 _lotteryId) external view returns (address[] memory) {
-        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
-        Lottery storage l = lotteries[_lotteryId];
-        address[] memory temp = new address[](l.participants.length);
-        uint256 count = 0;
-        
+        bool allWithdrawn = true;
         for (uint256 i = 0; i < l.participants.length; i++) {
-            address participant = l.participants[i];
-            
-            // Skip winner - they claim prize, not refund
-            if (participant == l.winner) {
-                continue;
-            }
-            
-            // If participant hasn't claimed refund, add to list
-            if (!l.hasRefunded[participant]) {
-                temp[count] = participant;
-                count++;
+            if (!l.hasWithdrawn[l.participants[i]]) {
+                allWithdrawn = false;
+                break;
             }
         }
-        
-        // Create result array with correct size
-        address[] memory result = new address[](count);
-        for (uint256 j = 0; j < count; j++) {
-            result[j] = temp[j];
+
+        if (allWithdrawn) {
+            _removeFromDrawnLotteries(_lotteryId);
+            delete lotteries[_lotteryId];
+            emit LotteryAutoDeleted(_lotteryId);
         }
-        
-        return result;
     }
 
-    function clearLotteryData(uint256 _lotteryId) external onlyOwner {
-        require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
-        Lottery storage l = lotteries[_lotteryId];
-        
-        // Only allow clearing if lottery is drawn or cancelled
-        require(l.isDrawn || l.isCancelled, "Lottery not finalized");
-        
-        // Check if winner has claimed prize (if there's a winner)
-        if (l.winner != address(0)) {
-            require(l.hasClaimed[l.winner], "Winner hasn't claimed prize");
+    function _removeFromActiveLotteries(uint256 _lotteryId) internal {
+        for (uint256 i = 0; i < activeLotteryIds.length; i++) {
+            if (activeLotteryIds[i] == _lotteryId) {
+                activeLotteryIds[i] = activeLotteryIds[activeLotteryIds.length - 1];
+                activeLotteryIds.pop();
+                break;
+            }
         }
-        
-        // Check if all participants have claimed refunds
-        require(allParticipantsClaimedRefunds(_lotteryId), "Not all participants claimed refunds");
-        
-        delete lotteries[_lotteryId];
+    }
+
+    function _removeFromDrawnLotteries(uint256 _lotteryId) internal {
+        for (uint256 i = 0; i < drawnLotteryIds.length; i++) {
+            if (drawnLotteryIds[i] == _lotteryId) {
+                drawnLotteryIds[i] = drawnLotteryIds[drawnLotteryIds.length - 1];
+                drawnLotteryIds.pop();
+                break;
+            }
+        }
+    }
+
+    function getActiveLotteries() external view returns (uint256[] memory) {
+        return activeLotteryIds;
+    }
+
+    function getDrawnLotteries() external view returns (uint256[] memory) {
+        return drawnLotteryIds;
     }
 
     function getParticipants(uint256 _lotteryId) external view returns (address[] memory) {
         require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
         return lotteries[_lotteryId].participants;
-    }
-
-    function migrateToLottery(uint256 fromId, uint256 toId) external nonReentrant {
-        require(fromId > 0 && fromId <= lotteryCounter, "Invalid from lottery ID");
-        require(toId > 0 && toId <= lotteryCounter, "Invalid to lottery ID");
-        require(fromId != toId, "Cannot migrate to same lottery");
-        Lottery storage fromL = lotteries[fromId];
-        Lottery storage toL = lotteries[toId];
-
-        require(fromL.entryCount[msg.sender] > 0, "Not in old");
-        require(!fromL.hasRefunded[msg.sender], "Refunded already");
-        require(fromL.isCancelled || (fromL.isDrawn && fromL.winner != msg.sender), "Old not eligible");
-        require(fromL.isActive || fromL.isCancelled || fromL.isDrawn, "Old lottery not finalized");
-
-        require(toL.isActive && !toL.isCancelled, "New lottery inactive");
-        require(block.timestamp < toL.drawTime, "Too late for new");
-        require(toL.participants.length < toL.maxParticipants, "New lottery full");
-
-        fromL.hasRefunded[msg.sender] = true;
-
-        uint256 topUp = toL.participationFee - toL.refundableAmount;
-        require(IERC20(toL.tokenAddress).transferFrom(msg.sender, address(this), topUp), "Migration transfer failed");
-
-        toL.participants.push(msg.sender);
-        toL.entryCount[msg.sender]++;
-
-        emit EnteredLottery(toId, msg.sender);
-    }
-
-    function getAllLotteryIds() external view returns (uint256[] memory) {
-        return allLotteryIds;
-    }
-
-    function lotteryExists(uint256 _lotteryId) external view returns (bool) {
-        return _lotteryId > 0 && _lotteryId <= lotteryCounter;
-    }
-
-    function getEntryCount(uint256 lotteryId, address user) external view returns (uint256) {
-        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
-        return lotteries[lotteryId].entryCount[user];
-    }
-
-    function hasUserRefunded(uint256 lotteryId, address user) external view returns (bool) {
-        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
-        return lotteries[lotteryId].hasRefunded[user];
-    }
-
-    function hasUserClaimed(uint256 lotteryId, address user) external view returns (bool) {
-        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
-        return lotteries[lotteryId].hasClaimed[user];
-    }
-
-    function hasUserVotedCancel(uint256 lotteryId, address user) external view returns (bool) {
-        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
-        return lotteries[lotteryId].hasVotedCancel[user];
-    }
-
-    function getActiveLotteries() external view returns (uint256[] memory) {
-        uint256[] memory temp = new uint256[](allLotteryIds.length);
-        uint256 count = 0;
-
-        for (uint256 i = 0; i < allLotteryIds.length; i++) {
-            uint256 id = allLotteryIds[i];
-            Lottery storage l = lotteries[id];
-
-            if (l.isActive && !l.isCancelled && block.timestamp < l.drawTime) {
-                temp[count] = id;
-                count++;
-            }
-        }
-
-        uint256[] memory result = new uint256[](count);
-        for (uint256 j = 0; j < count; j++) {
-            result[j] = temp[j];
-        }
-
-        return result;
     }
 
     function getLotteryInfo(uint256 _lotteryId) external view returns (LotteryInfo memory info) {
@@ -462,29 +396,27 @@ contract StemPayLotteryManager is
         info = LotteryInfo({
             tokenAddress: l.tokenAddress,
             participationFee: l.participationFee,
-            refundableAmount: l.refundableAmount,
             maxParticipants: l.maxParticipants,
             drawTime: l.drawTime,
-            prizeAmount: l.prizeAmount,
-            feeToInvestment: l.feeToInvestment,
-            feeToProfit: l.feeToProfit,
+            prizePercentage: l.prizePercentage,
+            investmentPercentage: l.investmentPercentage,
+            profitPercentage: l.profitPercentage,
             isActive: l.isActive,
             isDrawn: l.isDrawn,
             isCancelled: l.isCancelled,
             winner: l.winner,
             voteCount: l.voteCount,
+            drawTimestamp: l.drawTimestamp,
             participants: l.participants
         });
     }
-
 
     function getUserLotteryData(uint256 lotteryId, address user)
         external
         view
         returns (
             uint256 entryCount,
-            bool hasClaimed,
-            bool hasRefunded,
+            bool hasWithdrawn,
             bool hasVotedCancel
         )
     {
@@ -492,9 +424,12 @@ contract StemPayLotteryManager is
         Lottery storage l = lotteries[lotteryId];
         return (
             l.entryCount[user],
-            l.hasClaimed[user],
-            l.hasRefunded[user],
+            l.hasWithdrawn[user],
             l.hasVotedCancel[user]
         );
+    }
+
+    function lotteryExists(uint256 _lotteryId) external view returns (bool) {
+        return _lotteryId > 0 && _lotteryId <= lotteryCounter;
     }
 }
