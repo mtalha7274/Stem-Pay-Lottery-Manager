@@ -440,21 +440,59 @@
         "type": "address"
       }
     ],
-    "name": "getUserLotteryData",
+    "name": "getUserEntryCount",
     "outputs": [
       {
         "internalType": "uint256",
-        "name": "entryCount",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "lotteryId",
         "type": "uint256"
       },
       {
-        "internalType": "bool",
-        "name": "hasWithdrawn",
-        "type": "bool"
-      },
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserWithdrawnStatus",
+    "outputs": [
       {
         "internalType": "bool",
-        "name": "hasVotedCancel",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "lotteryId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "user",
+        "type": "address"
+      }
+    ],
+    "name": "getUserVoteStatus",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
         "type": "bool"
       }
     ],

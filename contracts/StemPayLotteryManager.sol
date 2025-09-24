@@ -6,6 +6,7 @@ import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
     error OnlyCoordinatorCanFulfill(address have, address want);
@@ -257,18 +258,17 @@ contract StemPayLotteryManager is
     }
 
     function _makeVRFRequest() internal returns (uint256) {
-        return IVRFCoordinatorV2Plus(vrfCoordinator).requestRandomWords(
-            VRFV2PlusClient.RandomWordsRequest({
-                keyHash: keyHash,
-                subId: subscriptionId,
-                requestConfirmations: requestConfirmations,
-                callbackGasLimit: callbackGasLimit,
-                numWords: numWords,
-                extraArgs: VRFV2PlusClient._argsToBytes(
-                    VRFV2PlusClient.ExtraArgsV1({ nativePayment: false })
-                )
-            })
-        );
+        VRFV2PlusClient.RandomWordsRequest memory req = VRFV2PlusClient.RandomWordsRequest({
+            keyHash: keyHash,
+            subId: subscriptionId,
+            requestConfirmations: requestConfirmations,
+            callbackGasLimit: callbackGasLimit,
+            numWords: numWords,
+            extraArgs: VRFV2PlusClient._argsToBytes(
+                VRFV2PlusClient.ExtraArgsV1({ nativePayment: false })
+            )
+        });
+        return IVRFCoordinatorV2Plus(vrfCoordinator).requestRandomWords(req);
     }
 
     function fulfillRandomWords(
@@ -417,43 +417,38 @@ contract StemPayLotteryManager is
         return _buildLotteryInfo(_lotteryId);
     }
 
-    function _buildLotteryInfo(uint256 _lotteryId) internal view returns (LotteryInfo memory) {
+    function _buildLotteryInfo(uint256 _lotteryId) internal view returns (LotteryInfo memory info) {
         Lottery storage l = lotteries[_lotteryId];
-        return LotteryInfo({
-            tokenAddress: l.tokenAddress,
-            participationFee: l.participationFee,
-            refundableAmount: l.refundableAmount,
-            maxParticipants: l.maxParticipants,
-            drawTime: l.drawTime,
-            prizePercentage: l.prizePercentage,
-            investmentPercentage: l.investmentPercentage,
-            profitPercentage: l.profitPercentage,
-            isActive: l.isActive,
-            isDrawn: l.isDrawn,
-            isCancelled: l.isCancelled,
-            winner: l.winner,
-            voteCount: l.voteCount,
-            drawTimestamp: l.drawTimestamp,
-            participants: l.participants
-        });
+        info.tokenAddress = l.tokenAddress;
+        info.participationFee = l.participationFee;
+        info.refundableAmount = l.refundableAmount;
+        info.maxParticipants = l.maxParticipants;
+        info.drawTime = l.drawTime;
+        info.prizePercentage = l.prizePercentage;
+        info.investmentPercentage = l.investmentPercentage;
+        info.profitPercentage = l.profitPercentage;
+        info.isActive = l.isActive;
+        info.isDrawn = l.isDrawn;
+        info.isCancelled = l.isCancelled;
+        info.winner = l.winner;
+        info.voteCount = l.voteCount;
+        info.drawTimestamp = l.drawTimestamp;
+        info.participants = l.participants;
     }
 
-    function getUserLotteryData(uint256 lotteryId, address user)
-        external
-        view
-        returns (
-            uint256 entryCount,
-            bool hasWithdrawn,
-            bool hasVotedCancel
-        )
-    {
+    function getUserEntryCount(uint256 lotteryId, address user) external view returns (uint256) {
         require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
-        Lottery storage l = lotteries[lotteryId];
-        return (
-            l.entryCount[user],
-            l.hasWithdrawn[user],
-            l.hasVotedCancel[user]
-        );
+        return lotteries[lotteryId].entryCount[user];
+    }
+
+    function getUserWithdrawnStatus(uint256 lotteryId, address user) external view returns (bool) {
+        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
+        return lotteries[lotteryId].hasWithdrawn[user];
+    }
+
+    function getUserVoteStatus(uint256 lotteryId, address user) external view returns (bool) {
+        require(lotteryId > 0 && lotteryId <= lotteryCounter, "Invalid lottery ID");
+        return lotteries[lotteryId].hasVotedCancel[user];
     }
 
     function lotteryExists(uint256 _lotteryId) external view returns (bool) {

@@ -112,6 +112,10 @@
   - Removed unused helper functions
   - Added `refundableAmount` field for proper refund handling
   - Removed `allLotteryIds` (replaced with `activeLotteryIds` and `drawnLotteryIds`)
+  - Split `getUserLotteryData` into separate functions to resolve stack depth issues:
+    - `getUserEntryCount(lotteryId, user)` - returns user's entry count
+    - `getUserWithdrawnStatus(lotteryId, user)` - returns withdrawal status
+    - `getUserVoteStatus(lotteryId, user)` - returns vote cancellation status
 
 ## Event Tracking
 
