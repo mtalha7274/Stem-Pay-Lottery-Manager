@@ -156,44 +156,51 @@
   {
     "inputs": [
       {
-        "internalType": "address",
-        "name": "_tokenAddress",
-        "type": "address"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_participationFee",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_refundableAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_maxParticipants",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_drawTime",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_prizePercentage",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_investmentPercentage",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "_profitPercentage",
-        "type": "uint256"
+        "components": [
+          {
+            "internalType": "address",
+            "name": "tokenAddress",
+            "type": "address"
+          },
+          {
+            "internalType": "uint256",
+            "name": "participationFee",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "refundableAmount",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "maxParticipants",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "drawTime",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "prizePercentage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "investmentPercentage",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint256",
+            "name": "profitPercentage",
+            "type": "uint256"
+          }
+        ],
+        "internalType": "struct StemPayLotteryManager.LotteryParams",
+        "name": "params",
+        "type": "tuple"
       }
     ],
     "name": "createLottery",

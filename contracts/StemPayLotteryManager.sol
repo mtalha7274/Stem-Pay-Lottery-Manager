@@ -7,6 +7,7 @@ import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
+import "@chainlink/contracts/src/v0.8/vrf/dev/libraries/VRFV2PlusClient.sol";
 
 abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
     error OnlyCoordinatorCanFulfill(address have, address want);
@@ -73,6 +74,17 @@ contract StemPayLotteryManager is
         address[] participants;
     }
 
+    struct LotteryParams {
+        address tokenAddress;
+        uint256 participationFee;
+        uint256 refundableAmount;
+        uint256 maxParticipants;
+        uint256 drawTime;
+        uint256 prizePercentage;
+        uint256 investmentPercentage;
+        uint256 profitPercentage;
+    }
+
     mapping(uint256 => Lottery) public lotteries;
     uint256 public lotteryCounter;
 
@@ -131,37 +143,28 @@ contract StemPayLotteryManager is
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
 
-    function createLottery(
-        address _tokenAddress,
-        uint256 _participationFee,
-        uint256 _refundableAmount,
-        uint256 _maxParticipants,
-        uint256 _drawTime,
-        uint256 _prizePercentage,
-        uint256 _investmentPercentage,
-        uint256 _profitPercentage
-    ) external onlyOwner {
-        require(_tokenAddress != address(0), "Invalid token address");
-        require(_participationFee > 0, "Fee must be > 0");
-        require(_refundableAmount > 0, "Refundable amount must be > 0");
-        require(_refundableAmount <= _participationFee, "Refundable amount cannot exceed participation fee");
-        require(_maxParticipants > 0, "Max participants must be > 0");
-        require(_drawTime > block.timestamp, "Invalid draw time");
-        require(_prizePercentage > 0, "Prize percentage must be > 0");
-        require(_investmentPercentage > 0, "Investment percentage must be > 0");
-        require(_profitPercentage > 0, "Profit percentage must be > 0");
-        require(_prizePercentage + _investmentPercentage + _profitPercentage == 100, "Percentages must sum to 100");
+    function createLottery(LotteryParams calldata params) external onlyOwner {
+        require(params.tokenAddress != address(0), "Invalid token address");
+        require(params.participationFee > 0, "Fee must be > 0");
+        require(params.refundableAmount > 0, "Refundable amount must be > 0");
+        require(params.refundableAmount <= params.participationFee, "Refundable amount cannot exceed participation fee");
+        require(params.maxParticipants > 0, "Max participants must be > 0");
+        require(params.drawTime > block.timestamp, "Invalid draw time");
+        require(params.prizePercentage > 0, "Prize percentage must be > 0");
+        require(params.investmentPercentage > 0, "Investment percentage must be > 0");
+        require(params.profitPercentage > 0, "Profit percentage must be > 0");
+        require(params.prizePercentage + params.investmentPercentage + params.profitPercentage == 100, "Percentages must sum to 100");
 
         lotteryCounter++;
         Lottery storage l = lotteries[lotteryCounter];
-        l.tokenAddress = _tokenAddress;
-        l.participationFee = _participationFee;
-        l.refundableAmount = _refundableAmount;
-        l.maxParticipants = _maxParticipants;
-        l.drawTime = _drawTime;
-        l.prizePercentage = _prizePercentage;
-        l.investmentPercentage = _investmentPercentage;
-        l.profitPercentage = _profitPercentage;
+        l.tokenAddress = params.tokenAddress;
+        l.participationFee = params.participationFee;
+        l.refundableAmount = params.refundableAmount;
+        l.maxParticipants = params.maxParticipants;
+        l.drawTime = params.drawTime;
+        l.prizePercentage = params.prizePercentage;
+        l.investmentPercentage = params.investmentPercentage;
+        l.profitPercentage = params.profitPercentage;
         l.isActive = true;
 
         activeLotteryIds.push(lotteryCounter);
@@ -296,29 +299,29 @@ contract StemPayLotteryManager is
         require(!l.hasWithdrawn[msg.sender], "Already withdrawn");
         require(l.entryCount[msg.sender] > 0, "No entries");
 
-        uint256 amount;
-        
-        if (l.isCancelled) {
-            amount = l.participationFee * l.entryCount[msg.sender];
-        } else if (l.isDrawn) {
-            if (l.winner == msg.sender) {
-                uint256 refundAmount = l.refundableAmount * l.entryCount[msg.sender];
-                uint256 totalFunds = l.participationFee * l.participants.length;
-                uint256 winningAmount = (totalFunds * l.prizePercentage) / 100;
-                amount = refundAmount + winningAmount;
-            } else {
-                require(block.timestamp <= l.drawTimestamp + REFUND_PERIOD, "Refund period expired");
-                amount = l.refundableAmount * l.entryCount[msg.sender];
-            }
-        }
-
+        uint256 amount = _calculateWithdrawAmount(l, msg.sender);
         require(amount > 0, "No funds to withdraw");
+        
         l.hasWithdrawn[msg.sender] = true;
-
         require(IERC20(l.tokenAddress).transfer(msg.sender, amount), "Transfer failed");
         emit FundsWithdrawn(_lotteryId, msg.sender, amount);
 
         _checkAndDeleteLottery(_lotteryId);
+    }
+
+    function _calculateWithdrawAmount(Lottery storage l, address user) internal view returns (uint256) {
+        if (l.isCancelled) {
+            return l.participationFee * l.entryCount[user];
+        } else if (l.isDrawn) {
+            if (l.winner == user) {
+                return (l.refundableAmount * l.entryCount[user]) + 
+                       ((l.participationFee * l.participants.length * l.prizePercentage) / 100);
+            } else {
+                require(block.timestamp <= l.drawTimestamp + REFUND_PERIOD, "Refund period expired");
+                return l.refundableAmount * l.entryCount[user];
+            }
+        }
+        return 0;
     }
 
     function withdrawExpiredRefunds(uint256 _lotteryId) external onlyOwner {
