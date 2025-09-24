@@ -3,7 +3,6 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "@openzeppelin/contracts-upgradeable/access/OwnableUpgradeable.sol";
-import "@openzeppelin/contracts/security/ReentrancyGuard.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import "@chainlink/contracts/src/v0.8/vrf/dev/interfaces/IVRFCoordinatorV2Plus.sol";
@@ -31,7 +30,6 @@ abstract contract VRFConsumerBaseV2_5Upgradeable is Initializable {
 contract StemPayLotteryManager is
     Initializable,
     OwnableUpgradeable,
-    ReentrancyGuard,
     UUPSUpgradeable,
     VRFConsumerBaseV2_5Upgradeable
 {
@@ -85,6 +83,14 @@ contract StemPayLotteryManager is
         uint256 profitPercentage;
     }
 
+    struct InitParams {
+        address vrfCoordinator;
+        bytes32 keyHash;
+        uint256 subId;
+        address investmentWallet;
+        address profitWallet;
+    }
+
     mapping(uint256 => Lottery) public lotteries;
     uint256 public lotteryCounter;
 
@@ -104,6 +110,10 @@ contract StemPayLotteryManager is
     mapping(uint256 => uint256) public requestToLottery;
 
     uint256 constant REFUND_PERIOD = 60 days;
+    
+    uint256 private constant _NOT_ENTERED = 1;
+    uint256 private constant _ENTERED = 2;
+    uint256 private _status;
 
     event LotteryCreated(uint256 lotteryId);
     event EnteredLottery(uint256 lotteryId, address user);
@@ -113,35 +123,37 @@ contract StemPayLotteryManager is
     event FundsWithdrawn(uint256 lotteryId, address user, uint256 amount);
     event LotteryAutoDeleted(uint256 lotteryId);
 
-    function initialize(
-        address _vrfCoordinator,
-        bytes32 _keyHash,
-        uint256 _subId,
-        address _investmentWallet,
-        address _profitWallet
-    ) external initializer {
-        require(_vrfCoordinator != address(0), "Invalid VRF coordinator");
-        require(_investmentWallet != address(0), "Invalid investment wallet");
-        require(_profitWallet != address(0), "Invalid profit wallet");
-        require(_keyHash != bytes32(0), "Invalid key hash");
-        require(_subId > 0, "Invalid subscription ID");
+    function initialize(InitParams calldata params) external initializer {
+        require(params.vrfCoordinator != address(0), "Invalid VRF coordinator");
+        require(params.investmentWallet != address(0), "Invalid investment wallet");
+        require(params.profitWallet != address(0), "Invalid profit wallet");
+        require(params.keyHash != bytes32(0), "Invalid key hash");
+        require(params.subId > 0, "Invalid subscription ID");
         
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
-        __VRFConsumerBaseV2_5Upgradeable_init(_vrfCoordinator);
+        __VRFConsumerBaseV2_5Upgradeable_init(params.vrfCoordinator);
 
-        vrfCoordinator = _vrfCoordinator;
-        keyHash = _keyHash;
-        subscriptionId = _subId;
+        vrfCoordinator = params.vrfCoordinator;
+        keyHash = params.keyHash;
+        subscriptionId = params.subId;
         callbackGasLimit = 200_000;
         requestConfirmations = 3;
         numWords = 1;
 
-        investmentWallet = _investmentWallet;
-        profitWallet = _profitWallet;
+        investmentWallet = params.investmentWallet;
+        profitWallet = params.profitWallet;
+        _status = _NOT_ENTERED;
     }
 
     function _authorizeUpgrade(address) internal override onlyOwner {}
+
+    modifier nonReentrant() {
+        require(_status != _ENTERED, "ReentrancyGuard: reentrant call");
+        _status = _ENTERED;
+        _;
+        _status = _NOT_ENTERED;
+    }
 
     function createLottery(LotteryParams calldata params) external onlyOwner {
         require(params.tokenAddress != address(0), "Invalid token address");
@@ -177,25 +189,25 @@ contract StemPayLotteryManager is
         Lottery storage l = lotteries[_lotteryId];
         require(l.isActive && !l.isCancelled && !l.isDrawn, "Lottery not available");
         
-        bool beforeDrawTime = block.timestamp < l.drawTime;
-        bool hasRequiredParticipants = l.participants.length >= l.maxParticipants;
-        
-        if (beforeDrawTime) {
-            require(true, "Can join before draw time");
-        } else {
-            require(!hasRequiredParticipants, "Cannot join after draw time if required participants reached");
-        }
-
+        _validateEntryConditions(l);
         require(IERC20(l.tokenAddress).transferFrom(msg.sender, address(this), l.participationFee), "Transfer failed");
 
         l.participants.push(msg.sender);
         l.entryCount[msg.sender]++;
 
-        if (!beforeDrawTime && l.participants.length >= l.maxParticipants) {
+        if (block.timestamp >= l.drawTime && l.participants.length >= l.maxParticipants) {
             _autoDrawLottery(_lotteryId);
         }
 
         emit EnteredLottery(_lotteryId, msg.sender);
+    }
+
+    function _validateEntryConditions(Lottery storage l) internal view {
+        if (block.timestamp < l.drawTime) {
+            return;
+        } else {
+            require(l.participants.length < l.maxParticipants, "Cannot join after draw time if required participants reached");
+        }
     }
 
     function voteCancel(uint256 _lotteryId) external {
@@ -232,7 +244,20 @@ contract StemPayLotteryManager is
     }
 
     function _requestDraw(uint256 _lotteryId) internal {
-        uint256 requestId = IVRFCoordinatorV2Plus(vrfCoordinator).requestRandomWords(
+        uint256 requestId = _makeVRFRequest();
+
+        requestToLottery[requestId] = _lotteryId;
+        lotteries[_lotteryId].isDrawn = true;
+        lotteries[_lotteryId].drawTimestamp = block.timestamp;
+
+        _removeFromActiveLotteries(_lotteryId);
+        drawnLotteryIds.push(_lotteryId);
+
+        emit LotteryDrawRequested(_lotteryId, requestId);
+    }
+
+    function _makeVRFRequest() internal returns (uint256) {
+        return IVRFCoordinatorV2Plus(vrfCoordinator).requestRandomWords(
             VRFV2PlusClient.RandomWordsRequest({
                 keyHash: keyHash,
                 subId: subscriptionId,
@@ -244,15 +269,6 @@ contract StemPayLotteryManager is
                 )
             })
         );
-
-        requestToLottery[requestId] = _lotteryId;
-        lotteries[_lotteryId].isDrawn = true;
-        lotteries[_lotteryId].drawTimestamp = block.timestamp;
-
-        _removeFromActiveLotteries(_lotteryId);
-        drawnLotteryIds.push(_lotteryId);
-
-        emit LotteryDrawRequested(_lotteryId, requestId);
     }
 
     function fulfillRandomWords(
@@ -266,20 +282,19 @@ contract StemPayLotteryManager is
         Lottery storage l = lotteries[lotteryId];
         require(l.isDrawn && l.winner == address(0), "Already fulfilled");
         require(randomWords.length > 0, "No random words received");
-
         require(l.participants.length > 0, "No participants");
-        uint256 winnerIndex = randomWords[0] % l.participants.length;
-        l.winner = l.participants[winnerIndex];
 
-        uint256 totalFunds = l.participationFee * l.participants.length;
-        uint256 investmentAmount = (totalFunds * l.investmentPercentage) / 100;
-        uint256 profitAmount = (totalFunds * l.profitPercentage) / 100;
-
-        IERC20 token = IERC20(l.tokenAddress);
-        require(token.transfer(investmentWallet, investmentAmount), "Investment transfer failed");
-        require(token.transfer(profitWallet, profitAmount), "Profit transfer failed");
-
+        l.winner = l.participants[randomWords[0] % l.participants.length];
+        _distributeFunds(l);
         emit WinnerSelected(lotteryId, l.winner);
+    }
+
+    function _distributeFunds(Lottery storage l) internal {
+        uint256 totalFunds = l.participationFee * l.participants.length;
+        IERC20 token = IERC20(l.tokenAddress);
+        
+        require(token.transfer(investmentWallet, (totalFunds * l.investmentPercentage) / 100), "Investment transfer failed");
+        require(token.transfer(profitWallet, (totalFunds * l.profitPercentage) / 100), "Profit transfer failed");
     }
 
     function cancelLottery(uint256 _lotteryId) external onlyOwner {
