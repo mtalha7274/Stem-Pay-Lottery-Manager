@@ -167,11 +167,6 @@
       },
       {
         "internalType": "uint256",
-        "name": "_refundableAmount",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
         "name": "_maxParticipants",
         "type": "uint256"
       },
@@ -348,11 +343,6 @@
           },
           {
             "internalType": "uint256",
-            "name": "refundableAmount",
-            "type": "uint256"
-          },
-          {
-            "internalType": "uint256",
             "name": "maxParticipants",
             "type": "uint256"
           },
@@ -491,11 +481,6 @@
       {
         "internalType": "uint256",
         "name": "participationFee",
-        "type": "uint256"
-      },
-      {
-        "internalType": "uint256",
-        "name": "refundableAmount",
         "type": "uint256"
       },
       {

@@ -16,7 +16,7 @@ if (!CONTRACT_ADDRESS) {
 
 const provider = new ethers.JsonRpcProvider(`https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`);
 
-const agents = fs.readFileSync("agents.csv", "utf-8")
+const agents = fs.readFileSync(path.join(process.cwd(), "assets", "agents.csv"), "utf-8")
   .split("\n")
   .slice(1) 
   .filter(Boolean)

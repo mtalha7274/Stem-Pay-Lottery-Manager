@@ -37,6 +37,7 @@ contract StemPayLotteryManager is
     struct Lottery {
         address tokenAddress;
         uint256 participationFee;
+        uint256 refundableAmount;
         uint256 maxParticipants;
         uint256 drawTime;
         uint256 prizePercentage;
@@ -57,6 +58,7 @@ contract StemPayLotteryManager is
     struct LotteryInfo {
         address tokenAddress;
         uint256 participationFee;
+        uint256 refundableAmount;
         uint256 maxParticipants;
         uint256 drawTime;
         uint256 prizePercentage;
@@ -132,6 +134,7 @@ contract StemPayLotteryManager is
     function createLottery(
         address _tokenAddress,
         uint256 _participationFee,
+        uint256 _refundableAmount,
         uint256 _maxParticipants,
         uint256 _drawTime,
         uint256 _prizePercentage,
@@ -140,6 +143,8 @@ contract StemPayLotteryManager is
     ) external onlyOwner {
         require(_tokenAddress != address(0), "Invalid token address");
         require(_participationFee > 0, "Fee must be > 0");
+        require(_refundableAmount > 0, "Refundable amount must be > 0");
+        require(_refundableAmount <= _participationFee, "Refundable amount cannot exceed participation fee");
         require(_maxParticipants > 0, "Max participants must be > 0");
         require(_drawTime > block.timestamp, "Invalid draw time");
         require(_prizePercentage > 0, "Prize percentage must be > 0");
@@ -151,6 +156,7 @@ contract StemPayLotteryManager is
         Lottery storage l = lotteries[lotteryCounter];
         l.tokenAddress = _tokenAddress;
         l.participationFee = _participationFee;
+        l.refundableAmount = _refundableAmount;
         l.maxParticipants = _maxParticipants;
         l.drawTime = _drawTime;
         l.prizePercentage = _prizePercentage;
@@ -296,13 +302,13 @@ contract StemPayLotteryManager is
             amount = l.participationFee * l.entryCount[msg.sender];
         } else if (l.isDrawn) {
             if (l.winner == msg.sender) {
+                uint256 refundAmount = l.refundableAmount * l.entryCount[msg.sender];
                 uint256 totalFunds = l.participationFee * l.participants.length;
-                amount = (totalFunds * l.prizePercentage) / 100;
+                uint256 winningAmount = (totalFunds * l.prizePercentage) / 100;
+                amount = refundAmount + winningAmount;
             } else {
                 require(block.timestamp <= l.drawTimestamp + REFUND_PERIOD, "Refund period expired");
-                uint256 totalFunds = l.participationFee * l.participants.length;
-                uint256 refundPerParticipant = (totalFunds * l.prizePercentage) / (100 * (l.participants.length - 1));
-                amount = refundPerParticipant * l.entryCount[msg.sender];
+                amount = l.refundableAmount * l.entryCount[msg.sender];
             }
         }
 
@@ -325,9 +331,7 @@ contract StemPayLotteryManager is
         for (uint256 i = 0; i < l.participants.length; i++) {
             address participant = l.participants[i];
             if (participant != l.winner && !l.hasWithdrawn[participant]) {
-                uint256 totalFunds = l.participationFee * l.participants.length;
-                uint256 refundPerParticipant = (totalFunds * l.prizePercentage) / (100 * (l.participants.length - 1));
-                totalRefunds += refundPerParticipant * l.entryCount[participant];
+                totalRefunds += l.refundableAmount * l.entryCount[participant];
                 l.hasWithdrawn[participant] = true;
             }
         }
@@ -396,6 +400,7 @@ contract StemPayLotteryManager is
         info = LotteryInfo({
             tokenAddress: l.tokenAddress,
             participationFee: l.participationFee,
+            refundableAmount: l.refundableAmount,
             maxParticipants: l.maxParticipants,
             drawTime: l.drawTime,
             prizePercentage: l.prizePercentage,

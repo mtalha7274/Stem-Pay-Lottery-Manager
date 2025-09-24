@@ -58,10 +58,19 @@
 - **Implementation**: `withdrawFunds` handles all withdrawal scenarios
 - **Logic**: 
   - Cancelled lottery: Full participation fee
-  - Drawn lottery (winner): Prize amount based on percentage
-  - Drawn lottery (non-winner): Refund from prize pool percentage
+  - Drawn lottery (winner): Refundable amount + winning amount based on prize percentage
+  - Drawn lottery (non-winner): Only refundable amount (not full participation fee)
 
-### ✅ 10. Percentage-Based Fees
+### ✅ 10. Participation Fee Structure
+- **Rule**: Participation fee consists of refundable and non-refundable portions
+- **Implementation**: `createLottery` takes both `participationFee` and `refundableAmount`
+- **Validation**: `refundableAmount` must be greater than 0 and cannot exceed `participationFee`
+- **Refund Logic**: 
+  - Cancelled lottery: Full participation fee returned
+  - Drawn lottery (winner): Refundable amount + prize
+  - Drawn lottery (loser): Only refundable amount
+
+### ✅ 11. Percentage-Based Fees
 - **Rule**: Admin passes percentages instead of fixed amounts
 - **Implementation**: `createLottery` takes `prizePercentage`, `investmentPercentage`, `profitPercentage`
 - **Validation**: All three percentages must sum to exactly 100
@@ -69,44 +78,44 @@
 
 ## Lottery Management Rules
 
-### ✅ 11. Separate Drawn Lottery List
+### ✅ 12. Separate Drawn Lottery List
 - **Rule**: Drawn lotteries maintained in separate public list
 - **Implementation**: `drawnLotteryIds` array tracks all drawn lotteries
 - **Public Access**: `getDrawnLotteries()` function provides public access
 - **Auto-Management**: Lotteries moved from active to drawn list automatically
 
-### ✅ 12. Auto-Deletion After Last Withdrawal
+### ✅ 13. Auto-Deletion After Last Withdrawal
 - **Rule**: Drawn lottery auto-deletes when last participant withdraws
 - **Implementation**: `_checkAndDeleteLottery` called after each withdrawal
 - **Cleanup**: Removes lottery from `drawnLotteryIds` and deletes from storage
 - **Event**: Emits `LotteryAutoDeleted` event for transparency
 
-### ✅ 13. 60-Day Refund Period
+### ✅ 14. 60-Day Refund Period
 - **Rule**: Participants have 60 days to withdraw refunds
 - **Implementation**: `REFUND_PERIOD = 60 days` constant
 - **Enforcement**: Non-winners cannot withdraw after `drawTimestamp + REFUND_PERIOD`
-- **Admin Recovery**: `withdrawExpiredRefunds` allows admin to recover unclaimed funds
+- **Admin Recovery**: `withdrawExpiredRefunds` allows admin to recover unclaimed refundable amounts
 
-### ✅ 14. No Migration Functionality
+### ✅ 15. No Migration Functionality
 - **Rule**: Migration to next lottery is not supported
 - **Implementation**: All migration-related code completely removed
 - **Cleanup**: `migrateToLottery` function and related logic eliminated
 
 ## Code Quality Rules
 
-### ✅ 15. No Unused Code
+### ✅ 16. No Unused Code
 - **Rule**: Remove all unnecessary, unrelated, or unused code
 - **Implementation**: 
   - Removed `clearLotteryData` function
   - Removed `migrateToLottery` function
   - Removed `claimRefund` and `claimPrize` (replaced with unified `withdrawFunds`)
   - Removed unused helper functions
-  - Removed `refundableAmount` field (now calculated from percentages)
+  - Added `refundableAmount` field for proper refund handling
   - Removed `allLotteryIds` (replaced with `activeLotteryIds` and `drawnLotteryIds`)
 
 ## Event Tracking
 
-### ✅ 16. Comprehensive Event System
+### ✅ 17. Comprehensive Event System
 - **Events Implemented**:
   - `LotteryCreated`: When lottery is created
   - `EnteredLottery`: When participant joins
@@ -118,20 +127,21 @@
 
 ## Data Structures
 
-### ✅ 17. Optimized Storage
+### ✅ 18. Optimized Storage
 - **Active Lotteries**: `activeLotteryIds[]` for ongoing lotteries
 - **Drawn Lotteries**: `drawnLotteryIds[]` for completed lotteries
 - **Unified Tracking**: `hasWithdrawn` replaces separate `hasClaimed` and `hasRefunded`
 - **Timestamp Tracking**: `drawTimestamp` for refund period calculation
+- **Refund Structure**: `refundableAmount` field separate from total `participationFee`
 
 ## Security Features
 
-### ✅ 18. Access Control
+### ✅ 19. Access Control
 - **OpenZeppelin Integration**: Uses battle-tested `OwnableUpgradeable`
 - **Reentrancy Protection**: `nonReentrant` modifier on critical functions
 - **Input Validation**: Comprehensive require statements throughout
 
-### ✅ 19. Upgradeability
+### ✅ 20. Upgradeability
 - **UUPS Pattern**: Secure upgrade mechanism with `onlyOwner` authorization
 - **State Preservation**: Upgrade-safe storage layout
 
@@ -143,9 +153,13 @@ To verify these rules in the future, test the following scenarios:
 2. **Admin Operations**: Only owner can create, cancel, and draw lotteries
 3. **Participation**: Users can join before time, auto-draw triggers correctly
 4. **Voting**: 2/3 majority cancellation works correctly
-5. **Withdrawals**: Unified withdrawal works for all scenarios
-6. **Percentages**: Prize/investment/profit calculations are accurate
-7. **Time Limits**: 60-day refund period enforced correctly
-8. **Auto-Deletion**: Lotteries auto-delete after all withdrawals
-9. **Lists**: Active and drawn lottery lists update correctly
-10. **Security**: Access controls prevent unauthorized operations
+5. **Refund Structure**: Refundable amount validation and proper handling
+6. **Withdrawals**: Unified withdrawal works for all scenarios
+   - Cancelled: Full participation fee returned
+   - Winner: Refundable amount + prize
+   - Loser: Only refundable amount
+7. **Percentages**: Prize/investment/profit calculations are accurate
+8. **Time Limits**: 60-day refund period enforced correctly
+9. **Auto-Deletion**: Lotteries auto-delete after all withdrawals
+10. **Lists**: Active and drawn lottery lists update correctly
+11. **Security**: Access controls prevent unauthorized operations

@@ -33,7 +33,7 @@ const erc20Abi = [
 ];
 const mockUsdtContract = new Contract(MOCK_USDT_ADDRESS, erc20Abi, adminWallet);
 
-const AGENTS_FILE = path.join(process.cwd(), "agents.csv");
+const AGENTS_FILE = path.join(process.cwd(), "assets", "agents.csv");
 
 function prompt(question) {
   const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
