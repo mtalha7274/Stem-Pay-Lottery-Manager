@@ -123,36 +123,29 @@
   {
     "inputs": [
       {
-        "components": [
-          {
-            "internalType": "address",
-            "name": "vrfCoordinator",
-            "type": "address"
-          },
-          {
-            "internalType": "bytes32",
-            "name": "keyHash",
-            "type": "bytes32"
-          },
-          {
-            "internalType": "uint256",
-            "name": "subId",
-            "type": "uint256"
-          },
-          {
-            "internalType": "address",
-            "name": "investmentWallet",
-            "type": "address"
-          },
-          {
-            "internalType": "address",
-            "name": "profitWallet",
-            "type": "address"
-          }
-        ],
-        "internalType": "struct StemPayLotteryManager.InitParams",
-        "name": "params",
-        "type": "tuple"
+        "internalType": "address",
+        "name": "_vrfCoordinator",
+        "type": "address"
+      },
+      {
+        "internalType": "bytes32",
+        "name": "_keyHash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_subId",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_investmentWallet",
+        "type": "address"
+      },
+      {
+        "internalType": "address",
+        "name": "_profitWallet",
+        "type": "address"
       }
     ],
     "name": "initialize",

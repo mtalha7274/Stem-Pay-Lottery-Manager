@@ -82,13 +82,6 @@ contract StemPayLotteryManager is
         uint256 profitPercentage;
     }
 
-    struct InitParams {
-        address vrfCoordinator;
-        bytes32 keyHash;
-        uint256 subId;
-        address investmentWallet;
-        address profitWallet;
-    }
 
     mapping(uint256 => Lottery) public lotteries;
     uint256 public lotteryCounter;
@@ -122,26 +115,32 @@ contract StemPayLotteryManager is
     event FundsWithdrawn(uint256 lotteryId, address user, uint256 amount);
     event LotteryAutoDeleted(uint256 lotteryId);
 
-    function initialize(InitParams calldata params) external initializer {
-        require(params.vrfCoordinator != address(0), "Invalid VRF coordinator");
-        require(params.investmentWallet != address(0), "Invalid investment wallet");
-        require(params.profitWallet != address(0), "Invalid profit wallet");
-        require(params.keyHash != bytes32(0), "Invalid key hash");
-        require(params.subId > 0, "Invalid subscription ID");
+    function initialize(
+        address _vrfCoordinator,
+        bytes32 _keyHash,
+        uint256 _subId,
+        address _investmentWallet,
+        address _profitWallet
+    ) external initializer {
+        require(_vrfCoordinator != address(0), "Invalid VRF coordinator");
+        require(_investmentWallet != address(0), "Invalid investment wallet");
+        require(_profitWallet != address(0), "Invalid profit wallet");
+        require(_keyHash != bytes32(0), "Invalid key hash");
+        require(_subId > 0, "Invalid subscription ID");
         
         __Ownable_init(msg.sender);
         __UUPSUpgradeable_init();
-        __VRFConsumerBaseV2_5Upgradeable_init(params.vrfCoordinator);
+        __VRFConsumerBaseV2_5Upgradeable_init(_vrfCoordinator);
 
-        vrfCoordinator = params.vrfCoordinator;
-        keyHash = params.keyHash;
-        subscriptionId = params.subId;
+        vrfCoordinator = _vrfCoordinator;
+        keyHash = _keyHash;
+        subscriptionId = _subId;
         callbackGasLimit = 200_000;
         requestConfirmations = 3;
         numWords = 1;
 
-        investmentWallet = params.investmentWallet;
-        profitWallet = params.profitWallet;
+        investmentWallet = _investmentWallet;
+        profitWallet = _profitWallet;
         _status = _NOT_ENTERED;
     }
 
@@ -167,7 +166,13 @@ contract StemPayLotteryManager is
         require(params.prizePercentage + params.investmentPercentage + params.profitPercentage == 100, "Percentages must sum to 100");
 
         lotteryCounter++;
-        Lottery storage l = lotteries[lotteryCounter];
+        _initializeLottery(lotteryCounter, params);
+        activeLotteryIds.push(lotteryCounter);
+        emit LotteryCreated(lotteryCounter);
+    }
+
+    function _initializeLottery(uint256 lotteryId, LotteryParams calldata params) internal {
+        Lottery storage l = lotteries[lotteryId];
         l.tokenAddress = params.tokenAddress;
         l.participationFee = params.participationFee;
         l.refundableAmount = params.refundableAmount;
@@ -177,10 +182,6 @@ contract StemPayLotteryManager is
         l.investmentPercentage = params.investmentPercentage;
         l.profitPercentage = params.profitPercentage;
         l.isActive = true;
-
-        activeLotteryIds.push(lotteryCounter);
-
-        emit LotteryCreated(lotteryCounter);
     }
 
     function enterLottery(uint256 _lotteryId) external nonReentrant {
@@ -413,8 +414,12 @@ contract StemPayLotteryManager is
 
     function getLotteryInfo(uint256 _lotteryId) external view returns (LotteryInfo memory info) {
         require(_lotteryId > 0 && _lotteryId <= lotteryCounter, "Invalid lottery ID");
+        return _buildLotteryInfo(_lotteryId);
+    }
+
+    function _buildLotteryInfo(uint256 _lotteryId) internal view returns (LotteryInfo memory) {
         Lottery storage l = lotteries[_lotteryId];
-        info = LotteryInfo({
+        return LotteryInfo({
             tokenAddress: l.tokenAddress,
             participationFee: l.participationFee,
             refundableAmount: l.refundableAmount,
